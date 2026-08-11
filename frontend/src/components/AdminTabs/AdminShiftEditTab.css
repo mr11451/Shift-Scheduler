@@ -1,0 +1,164 @@
+.shift-table-container {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  height: calc(100vh - 400px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.shift-fixed-column {
+  width: 200px;
+  background: #fff;
+  border-right: 2px solid var(--line);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.shift-scroll-column {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.shift-header-row {
+  display: flex;
+  background: #f9f9f9;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  align-items: center;
+}
+
+.shift-fixed-column .shift-header-row {
+  position: sticky;
+  top: 0;
+  background: #f9f9f9;
+  z-index: 2;
+  align-items: center;
+  display: flex;
+  height: 2.5rem;
+}
+
+/* 固定カラム内のすべての行を垂直中央揃え */
+.shift-fixed-column > div > div {
+  display: flex;
+  align-items: center;
+}
+
+/* スクロール部分のヘッダーと行 */
+.shift-scroll-column .shift-header-row {
+  height: 2.5rem;
+}
+
+.shift-scroll-column > div > div {
+  display: flex;
+  align-items: center;
+}
+
+.shift-staff-row {
+  height: 3rem;
+  align-items: stretch;
+}
+
+.shift-cell-control {
+  width: 3rem;
+  min-width: 3rem;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  text-align: center;
+  font-weight: 600;
+  color: #111;
+  line-height: 1;
+  box-sizing: border-box;
+  cursor: pointer;
+  border-right: 1px solid var(--line);
+}
+
+.shift-cell-button {
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.18rem;
+  padding: 0.2rem 0;
+}
+
+.shift-cell-select {
+  display: block;
+  margin-top: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  text-align-last: center;
+  padding: 0;
+  font-size: 0.9rem;
+  background-position: center right 0.15rem;
+}
+
+.shift-cell-symbol {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.shift-request-badge {
+  display: inline-block;
+  max-width: 2.7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.1rem 0.2rem;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  line-height: 1.1;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.shift-request-badge.status-draft {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.shift-request-badge.status-submitted {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.shift-request-badge.status-applied {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.shift-request-badge.status-rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* スクロールバーのスタイリング */
+.shift-scroll-column::-webkit-scrollbar,
+.shift-fixed-column::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.shift-scroll-column::-webkit-scrollbar-track,
+.shift-fixed-column::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.shift-scroll-column::-webkit-scrollbar-thumb,
+.shift-fixed-column::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.shift-scroll-column::-webkit-scrollbar-thumb:hover,
+.shift-fixed-column::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

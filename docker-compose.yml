@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: shift-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=shift_scheduler
+      - POSTGRES_USER=shift_user
+      - POSTGRES_PASSWORD=shift_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shift_user -d shift_scheduler"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  shift-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shift-scheduler
+    ports:
+      - "8000:8080"
+      - "5005:5005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=shift_scheduler
+      - DB_USER=shift_user
+      - DB_PASSWORD=shift_password
+      - JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

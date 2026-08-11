@@ -1,0 +1,111 @@
+package com.shiftscheduler.server.api;
+
+import com.shiftscheduler.server.service.SystemSettingService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/system-settings")
+public class SystemSettingApiController {
+
+  @Autowired
+  private SystemSettingService systemSettingService;
+
+  /**
+   * GET /api/system-settings/{settingKey} - Retrieve setting by key
+   */
+  @GetMapping("/{settingKey}")
+  public ResponseEntity<SystemSettingResponse> getSystemSettingByKey(@PathVariable String settingKey) {
+    try {
+      SystemSettingResponse setting = systemSettingService.getSystemSettingByKey(settingKey);
+      return ResponseEntity.ok(setting);
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.notFound().build();
+    }
+  }
+
+  /**
+   * GET /api/system-settings - Retrieve all settings
+   */
+  @GetMapping
+  public ResponseEntity<List<SystemSettingResponse>> getAllSystemSettings() {
+    List<SystemSettingResponse> settings = systemSettingService.getAllSystemSettings();
+    return ResponseEntity.ok(settings);
+  }
+
+  /**
+   * GET /api/system-settings/confirmedShiftMonths/status - Determine whether a given month is confirmed
+   */
+  @GetMapping("/confirmedShiftMonths/status")
+  public ResponseEntity<?> getConfirmedMonthStatus(
+      @RequestParam int year,
+      @RequestParam int month) {
+    if (month < 1 || month > 12) {
+      return ResponseEntity.badRequest().body("エラー: 月は1〜12の範囲で指定してください。");
+    }
+
+    boolean confirmed = systemSettingService.isMonthConfirmed(year, month);
+    String monthKey = String.format("%04d-%02d", year, month);
+    return ResponseEntity.ok(Map.of(
+        "year", year,
+        "month", month,
+        "monthKey", monthKey,
+        "confirmed", confirmed));
+  }
+
+  /**
+   * PUT /api/system-settings/{settingKey}/boolean - Update boolean setting
+   * Updater staff ID is resolved from JWT-authenticated request context.
+   */
+  @PutMapping("/{settingKey}/boolean")
+  public ResponseEntity<?> updateSystemSettingBoolean(
+      @PathVariable String settingKey,
+      @RequestParam Boolean value,
+      HttpServletRequest httpRequest) {
+    try {
+      Long updaterStaffId = getAuthenticatedStaffId(httpRequest);
+      if (updaterStaffId == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("エラー: 認証が必要です。");
+      }
+      SystemSettingResponse setting = systemSettingService.updateSystemSettingBoolean(updaterStaffId, settingKey, value);
+      return ResponseEntity.ok(setting);
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body("エラー: " + e.getMessage());
+    }
+  }
+
+  /**
+   * PUT /api/system-settings/{settingKey}/text - Update text setting
+   * Updater staff ID is resolved from JWT-authenticated request context.
+   */
+  @PutMapping("/{settingKey}/text")
+  public ResponseEntity<?> updateSystemSettingText(
+      @PathVariable String settingKey,
+      @RequestParam String value,
+      HttpServletRequest httpRequest) {
+    try {
+      Long updaterStaffId = getAuthenticatedStaffId(httpRequest);
+      if (updaterStaffId == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("エラー: 認証が必要です。");
+      }
+      SystemSettingResponse setting = systemSettingService.updateSystemSettingText(updaterStaffId, settingKey, value);
+      return ResponseEntity.ok(setting);
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body("エラー: " + e.getMessage());
+    }
+  }
+
+  private Long getAuthenticatedStaffId(HttpServletRequest httpRequest) {
+    Object staffId = httpRequest.getAttribute("staffId");
+    if (staffId instanceof Number number) {
+      return number.longValue();
+    }
+    return null;
+  }
+}
