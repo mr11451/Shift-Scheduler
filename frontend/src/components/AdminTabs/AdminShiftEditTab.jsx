@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import { fetchWithAuth } from "../../utils/fetchWithAuth";
 import { AuthContext } from "../../context/AuthContext";
 import { isHolidayDate, parseHolidayDates, parseHolidayWeekdays } from "../../utils/holidayDates";
@@ -26,6 +26,7 @@ export default function AdminShiftEditTab() {
   const [shiftRequests, setShiftRequests] = useState({}); // key: staffId-date, value: request
   const [holidayDates, setHolidayDates] = useState([]);
   const [holidayWeekdays, setHolidayWeekdays] = useState([]);
+  const [requiredCounts, setRequiredCounts] = useState({});
   const [maxConsecutiveWorkdays, setMaxConsecutiveWorkdays] = useState(0);
   const [minimumShiftGapHours, setMinimumShiftGapHours] = useState(0);
   const [isCurrentMonthConfirmed, setIsCurrentMonthConfirmed] = useState(false);
@@ -195,24 +196,61 @@ export default function AdminShiftEditTab() {
 
       let parsedGapHours = 0;
       let parsedMaxConsecutiveWorkdays = 0;
+      let parsedRequiredCounts = {};
       try {
         const parsedRules = JSON.parse(autoShiftRuleSetting?.settingValueText || "{}");
         const ruleGap = Number(parsedRules?.minimumShiftGapHours ?? 0);
         const ruleMaxConsecutive = Number(parsedRules?.maxConsecutiveWorkdays ?? 0);
+        parsedRequiredCounts = parsedRules?.requiredCounts && typeof parsedRules.requiredCounts === "object" ? parsedRules.requiredCounts : {};
         parsedGapHours = Number.isFinite(ruleGap) ? Math.max(0, ruleGap) : 0;
         parsedMaxConsecutiveWorkdays = Number.isFinite(ruleMaxConsecutive) ? Math.max(0, ruleMaxConsecutive) : 0;
       } catch (error) {
         parsedGapHours = 0;
         parsedMaxConsecutiveWorkdays = 0;
+        parsedRequiredCounts = {};
       }
       setMinimumShiftGapHours(parsedGapHours);
       setMaxConsecutiveWorkdays(parsedMaxConsecutiveWorkdays);
+      setRequiredCounts(parsedRequiredCounts);
     } catch (e) {
       setHolidayDates([]);
       setHolidayWeekdays([]);
+      setRequiredCounts({});
       setMinimumShiftGapHours(0);
       setMaxConsecutiveWorkdays(0);
     }
+  }
+
+  const dailyShiftCounts = useMemo(() => {
+    const counts = {};
+
+    Object.values(shiftAssignments).forEach((assignment) => {
+      if (!assignment?.workDate || assignment.shiftTypeId == null) {
+        return;
+      }
+
+      const dateKey = assignment.workDate;
+      const shiftTypeId = String(assignment.shiftTypeId);
+      if (!counts[dateKey]) {
+        counts[dateKey] = {};
+      }
+      counts[dateKey][shiftTypeId] = (counts[dateKey][shiftTypeId] || 0) + 1;
+    });
+
+    return counts;
+  }, [shiftAssignments]);
+
+  function isRequiredCountShortageDate(dateStr) {
+    const countsByShiftType = dailyShiftCounts?.[dateStr] || {};
+    return Object.entries(requiredCounts).some(([shiftTypeId, requiredCountValue]) => {
+      const requiredCount = Number(requiredCountValue);
+      if (!Number.isFinite(requiredCount) || requiredCount <= 0) {
+        return false;
+      }
+
+      const actualCount = Number(countsByShiftType[String(shiftTypeId)] ?? 0);
+      return actualCount < requiredCount;
+    });
   }
 
   async function loadCurrentMonthConfirmationStatus(date) {
@@ -1134,7 +1172,8 @@ export default function AdminShiftEditTab() {
                     const isNgBandViolation = isStaffInNgShiftBand(staff, currentShiftTypeId, day);
                     const isShiftGapViolation = isMinimumShiftGapViolation(staff.id, day, currentShiftTypeId);
                     const isConsecutiveViolation = isConsecutiveWorkdaysViolation(staff.id, day, currentShiftTypeId);
-                    const shouldHighlightRed = isMismatch || isNgBandViolation || isShiftGapViolation || isConsecutiveViolation;
+                    const isRequiredCountShortageCell = isRequiredCountShortageDate(dateStr);
+                    const shouldHighlightRed = isMismatch || isNgBandViolation || isShiftGapViolation || isConsecutiveViolation || isRequiredCountShortageCell;
 
                     if (isActive) {
                       return (

@@ -206,6 +206,9 @@ export default function AdminSystemSettingTab({ onCancel }) {
       setMessage("設定を保存しました。");
       setMessageType("success");
       await loadSettings();
+      if (onCancel) {
+        onCancel();
+      }
     } catch (e) {
       setMessage(e.message);
       setMessageType("error");

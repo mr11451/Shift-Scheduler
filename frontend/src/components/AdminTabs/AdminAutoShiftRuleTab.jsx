@@ -233,7 +233,7 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
                       min="0"
                       value={rules.requiredCounts?.[shiftType.id] ?? 0}
                       onChange={(e) => handleRequiredCountChange(shiftType.id, Number(e.target.value))}
-                      style={{ padding: "0.6rem", border: "1px solid var(--line)", borderRadius: "4px" }}
+                      style={{ width: "fit-content", minWidth: 0, display: "inline-block", padding: "0.6rem", border: "1px solid var(--line)", borderRadius: "4px" }}
                     />
                   </label>
                 ))
@@ -250,7 +250,7 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
                   name="monthlyMaxWorkdaysMode"
                   value={rules.monthlyMaxWorkdaysMode || "FIXED"}
                   onChange={handleChange}
-                  style={{ padding: "0.6rem", border: "1px solid var(--line)", borderRadius: "4px" }}
+                  style={{ width: "fit-content", minWidth: 0, display: "inline-block", padding: "0.6rem", border: "1px solid var(--line)", borderRadius: "4px" }}
                 >
                   <option value="FIXED">固定</option>
                   <option value="CALCULATED">月毎変動</option>
@@ -320,7 +320,7 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
                 name="desiredShiftMode"
                 value={rules.desiredShiftMode}
                 onChange={handleChange}
-                style={{ padding: "0.6rem", border: "1px solid var(--line)", borderRadius: "4px" }}
+                style={{ width: "fit-content", minWidth: 0, display: "inline-block", padding: "0.6rem", border: "1px solid var(--line)", borderRadius: "4px" }}
               >
                 <option value="REQUIRED">必須考慮</option>
                 <option value="PRIORITY">優先考慮</option>
@@ -337,7 +337,7 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
                 name="existingShiftHandling"
                 value={rules.existingShiftHandling}
                 onChange={handleChange}
-                style={{ padding: "0.6rem", border: "1px solid var(--line)", borderRadius: "4px" }}
+                style={{ width: "fit-content", minWidth: 0, display: "inline-block", padding: "0.6rem", border: "1px solid var(--line)", borderRadius: "4px" }}
               >
                 <option value="ONLY_EMPTY">未入力セルのみ生成</option>
                 <option value="OVERWRITE">既存値を上書きして再生成</option>

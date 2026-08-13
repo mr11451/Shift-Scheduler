@@ -103,6 +103,9 @@ function StaffListView({ onEdit }) {
                 type="button"
                 onClick={() => toggleSort("staffCode")}
                 style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
                   border: "none",
                   background: "transparent",
                   cursor: "pointer",
@@ -120,6 +123,9 @@ function StaffListView({ onEdit }) {
                 type="button"
                 onClick={() => toggleSort("staffName")}
                 style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
                   border: "none",
                   background: "transparent",
                   cursor: "pointer",
@@ -132,10 +138,86 @@ function StaffListView({ onEdit }) {
                 氏名{sortIndicator("staffName")}
               </button>
             </th>
-            <th style={{ textAlign: "left", padding: "0.5rem" }}>担当</th>
-            <th style={{ textAlign: "left", padding: "0.5rem" }}>権限</th>
-            <th style={{ textAlign: "left", padding: "0.5rem" }}>メール</th>
-            <th style={{ textAlign: "left", padding: "0.5rem" }}>グループ</th>
+            <th style={{ textAlign: "left", padding: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => toggleSort("responsibility")}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  padding: 0,
+                  font: "inherit",
+                  color: "inherit",
+                  fontWeight: 600,
+                }}
+              >
+                担当{sortIndicator("responsibility")}
+              </button>
+            </th>
+            <th style={{ textAlign: "left", padding: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => toggleSort("roleLevel")}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  padding: 0,
+                  font: "inherit",
+                  color: "inherit",
+                  fontWeight: 600,
+                }}
+              >
+                権限{sortIndicator("roleLevel")}
+              </button>
+            </th>
+            <th style={{ textAlign: "left", padding: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => toggleSort("email")}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  padding: 0,
+                  font: "inherit",
+                  color: "inherit",
+                  fontWeight: 600,
+                }}
+              >
+                メール{sortIndicator("email")}
+              </button>
+            </th>
+            <th style={{ textAlign: "left", padding: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => toggleSort("groupName")}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  padding: 0,
+                  font: "inherit",
+                  color: "inherit",
+                  fontWeight: 600,
+                }}
+              >
+                グループ{sortIndicator("groupName")}
+              </button>
+            </th>
             <th style={{ textAlign: "center", padding: "0.5rem" }}>操作</th>
           </tr>
         </thead>
