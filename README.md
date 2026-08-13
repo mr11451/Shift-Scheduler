@@ -166,6 +166,26 @@ export DB_USER=shift_user
 export DB_PASSWORD=shift_password
 ```
 
+### パスワード変更メール設定
+
+会員画面からのパスワード変更では、登録済みメールアドレスへ再設定URLと確認コードを送信します。SMTP サーバーを使用する環境では、バックエンド起動前に次の環境変数を設定してください。
+
+```bash
+export SMTP_HOST=smtp.example.com
+export SMTP_PORT=587
+export SMTP_USERNAME=your-smtp-user
+export SMTP_PASSWORD=your-smtp-password
+export SMTP_FROM=no-reply@example.com
+export SMTP_AUTH=true
+export SMTP_STARTTLS=true
+export PASSWORD_RESET_BASE_URL=https://scheduler.example.com/password-reset
+```
+
+- `SMTP_HOST`、`SMTP_USERNAME`、`SMTP_PASSWORD`、`SMTP_FROM` はメール送信に必要です。
+- `SMTP_PORT` の既定値は `587`、`SMTP_AUTH` と `SMTP_STARTTLS` の既定値は `true` です。
+- `PASSWORD_RESET_BASE_URL` はメールに記載する再設定画面のURLです。未設定時は `http://localhost:5173/password-reset` になります。
+- Docker Compose で起動する場合も、これらの環境変数を `shift-scheduler` サービスへ渡してください。認証情報はリポジトリへ保存せず、`.env` またはデプロイ先のシークレット管理機能で設定してください。
+
 2. React をビルド
 
 ```bash

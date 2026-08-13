@@ -54,4 +54,8 @@ public class JwtTokenUtil {
         Claims claims = validateToken(token);
         return claims.get("roleLevel", String.class);
     }
+
+    public static Date getIssuedAtFromToken(String token) throws JwtException {
+        return validateToken(token).getIssuedAt();
+    }
 }

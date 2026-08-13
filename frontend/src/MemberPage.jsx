@@ -571,6 +571,24 @@ export default function MemberPage() {
     }
   }
 
+  async function requestPasswordReset() {
+    if (!window.confirm("登録済みメールアドレスへパスワード変更URLと確認コードを送信しますか？")) return;
+    try {
+      const res = await fetchWithAuth("/api/password-reset-requests", { method: "POST" });
+      if (!res.ok) {
+        throw new Error((await res.text()) || "パスワード変更メールの送信に失敗しました。");
+      }
+      const data = await res.json();
+      if (data.emailSent) {
+        showMessage("パスワード変更用のURLと確認コードをメールで送信しました。1時間以内に手続きを完了してください。", "success");
+      } else {
+        window.alert(`${data.message}\n\nアクセスURL: ${data.accessUrl}\n確認コード: ${data.verificationCode}\n\n有効期限は1時間です。`);
+      }
+    } catch (e) {
+      showMessage(e.message, "error");
+    }
+  }
+
   function handleStaffSelection(nextStaffId) {
     if (!nextStaffId) {
       setSelectedStaffId("");
@@ -715,6 +733,11 @@ export default function MemberPage() {
           ログイン中: {loginSummary}
         </p>
       )}
+      <div style={{ display: "flex", justifyContent: "flex-end", margin: "-0.5rem 0 1rem" }}>
+        <button type="button" onClick={requestPasswordReset} style={{ padding: "0.45rem 0.7rem" }}>
+          自分のパスワードを変更
+        </button>
+      </div>
 
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
         <button

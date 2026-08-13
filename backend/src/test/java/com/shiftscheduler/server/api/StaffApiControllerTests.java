@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shiftscheduler.server.domain.RoleLevel;
 import com.shiftscheduler.server.domain.Staff;
 import com.shiftscheduler.server.dto.StaffCreateRequest;
+import com.shiftscheduler.server.dto.StaffCreateResponse;
 import com.shiftscheduler.server.dto.StaffResponse;
 import com.shiftscheduler.server.dto.StaffUpdateRequest;
 import com.shiftscheduler.server.service.StaffService;
@@ -99,8 +100,9 @@ class StaffApiControllerTests {
         staff.setStaffName("山田太郎");
         staff.setRoleLevel(RoleLevel.MEMBER);
         staff.setIsActive(true);
-        when(staffService.createStaff(anyLong(), any(StaffCreateRequest.class))).thenReturn(staff);
         when(staffService.convertToResponse(staff)).thenReturn(toResponse(staff));
+        when(staffService.createStaffWithInitialLogin(anyLong(), any(StaffCreateRequest.class)))
+            .thenReturn(new StaffCreateResponse(toResponse(staff), null));
 
         StaffCreateRequest request = new StaffCreateRequest();
         request.setStaffName("山田太郎");
@@ -113,7 +115,7 @@ class StaffApiControllerTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.staffCode").value("STF-00001"));
+                .andExpect(jsonPath("$.staff.staffCode").value("STF-00001"));
     }
 
     @Test

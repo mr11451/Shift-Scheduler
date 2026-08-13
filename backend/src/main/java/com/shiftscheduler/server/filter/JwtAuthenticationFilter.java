@@ -1,9 +1,18 @@
 package com.shiftscheduler.server.filter;
 
 import java.io.IOException;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+import com.shiftscheduler.server.domain.Staff;
+import com.shiftscheduler.server.repository.StaffRepository;
+import com.shiftscheduler.server.util.JwtTokenUtil;
+
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -12,20 +21,20 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
-
-import com.shiftscheduler.server.util.JwtTokenUtil;
-import io.jsonwebtoken.JwtException;
-
 @Component
 @Order(2)
 public class JwtAuthenticationFilter implements Filter {
+    private final StaffRepository staffRepository;
     
     // API URLs that do not require authentication
     private static final List<String> PUBLIC_URLS = Arrays.asList(
-        "/api/login"
+        "/api/login",
+        "/api/password-resets/"
     );
+
+    public JwtAuthenticationFilter(StaffRepository staffRepository) {
+        this.staffRepository = staffRepository;
+    }
     
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -73,9 +82,19 @@ public class JwtAuthenticationFilter implements Filter {
             // Validate token
             JwtTokenUtil.validateToken(token);
             
+            Long staffId = JwtTokenUtil.getStaffIdFromToken(token);
+            Staff staff = staffRepository.findById(staffId)
+                .orElseThrow(() -> new JwtException("スタッフが見つかりません。"));
+            OffsetDateTime passwordChangedAt = staff.getPasswordChangedAt();
+            if (passwordChangedAt != null
+                    && !JwtTokenUtil.getIssuedAtFromToken(token).toInstant().isAfter(passwordChangedAt.toInstant())) {
+                throw new JwtException("パスワード変更によりトークンが無効になりました。"
+                );
+            }
+
             // Add token to request attributes for later use
             httpRequest.setAttribute("authToken", token);
-            httpRequest.setAttribute("staffId", JwtTokenUtil.getStaffIdFromToken(token));
+            httpRequest.setAttribute("staffId", staffId);
             httpRequest.setAttribute("roleLevel", JwtTokenUtil.getRoleLevelFromToken(token));
             
             chain.doFilter(request, response);

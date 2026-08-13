@@ -10,7 +10,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.shiftscheduler.server.dto.LoginRequest;
 import com.shiftscheduler.server.dto.LoginResponse;
+import com.shiftscheduler.server.dto.PasswordResetConfirmRequest;
+import com.shiftscheduler.server.dto.PasswordResetRequestResponse;
 import com.shiftscheduler.server.service.AuthenticationService;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api")
@@ -29,6 +34,30 @@ public class AuthenticationApiController {
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("エラー: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/password-reset-requests")
+    public ResponseEntity<?> requestPasswordReset(HttpServletRequest request) {
+        try {
+            Long staffId = (Long) request.getAttribute("staffId");
+            PasswordResetRequestResponse response = authenticationService.requestPasswordReset(staffId);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("エラー: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/password-resets/{staffId}/{token}")
+    public ResponseEntity<?> confirmPasswordReset(
+            @org.springframework.web.bind.annotation.PathVariable Long staffId,
+            @org.springframework.web.bind.annotation.PathVariable String token,
+            @Valid @RequestBody PasswordResetConfirmRequest request) {
+        try {
+            authenticationService.resetPassword(staffId, token, request.verificationCode(), request.newPassword());
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("エラー: " + e.getMessage());
         }
     }
 }

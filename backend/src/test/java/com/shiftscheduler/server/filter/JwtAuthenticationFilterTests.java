@@ -1,20 +1,25 @@
 package com.shiftscheduler.server.filter;
 
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.OffsetDateTime;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.shiftscheduler.server.domain.Staff;
+import com.shiftscheduler.server.repository.StaffRepository;
+import com.shiftscheduler.server.util.JwtTokenUtil;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @ExtendWith(MockitoExtension.class)
 class JwtAuthenticationFilterTests {
@@ -28,11 +33,14 @@ class JwtAuthenticationFilterTests {
     @Mock
     private FilterChain chain;
 
+    @Mock
+    private StaffRepository staffRepository;
+
     private JwtAuthenticationFilter filter;
 
     @BeforeEach
     void setUp() {
-        filter = new JwtAuthenticationFilter();
+        filter = new JwtAuthenticationFilter(staffRepository);
     }
 
     @Test
@@ -76,5 +84,24 @@ class JwtAuthenticationFilterTests {
         filter.doFilter(request, response, chain);
 
         verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void doFilter_tokenIssuedBeforePasswordChange_returnsUnauthorized() throws Exception {
+        String token = JwtTokenUtil.generateToken(1L, "STF-00001", "MEMBER");
+        Staff staff = new Staff();
+        staff.setId(1L);
+        staff.setPasswordChangedAt(OffsetDateTime.now().plusSeconds(1));
+
+        when(request.getRequestURI()).thenReturn("/api/staffs");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(staffRepository.findById(1L)).thenReturn(java.util.Optional.of(staff));
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+
+        filter.doFilter(request, response, chain);
+
+        verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        verify(chain, never()).doFilter(request, response);
     }
 }

@@ -57,6 +57,9 @@ public class Staff {
     @Column(length = 255)
     private String passwordHash;
 
+    @Column
+    private OffsetDateTime passwordChangedAt;
+
     @Column(name = "ng_shift_time_bands", length = 1000)
     private String ngShiftTypeIds;
 
@@ -159,6 +162,14 @@ public class Staff {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public OffsetDateTime getPasswordChangedAt() {
+        return passwordChangedAt;
+    }
+
+    public void setPasswordChangedAt(OffsetDateTime passwordChangedAt) {
+        this.passwordChangedAt = passwordChangedAt;
     }
 
     public String getNgShiftTypeIds() {

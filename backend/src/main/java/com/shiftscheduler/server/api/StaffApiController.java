@@ -3,8 +3,6 @@ package com.shiftscheduler.server.api;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import jakarta.servlet.http.HttpServletRequest;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,20 +17,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.shiftscheduler.server.domain.Staff;
 import com.shiftscheduler.server.dto.StaffCreateRequest;
+import com.shiftscheduler.server.dto.StaffCreateResponse;
 import com.shiftscheduler.server.dto.StaffResponse;
 import com.shiftscheduler.server.dto.StaffUpdateRequest;
-import com.shiftscheduler.server.service.AccessControlService;
 import com.shiftscheduler.server.service.StaffService;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/staffs")
 public class StaffApiController {
     private final StaffService staffService;
-    private final AccessControlService accessControlService;
 
-    public StaffApiController(StaffService staffService, AccessControlService accessControlService) {
+    public StaffApiController(StaffService staffService) {
         this.staffService = staffService;
-        this.accessControlService = accessControlService;
     }
 
     @GetMapping
@@ -66,7 +64,7 @@ public class StaffApiController {
     }
 
     @PostMapping
-    public ResponseEntity<StaffResponse> createStaff(@RequestBody StaffCreateRequest request, HttpServletRequest httpRequest) {
+    public ResponseEntity<StaffCreateResponse> createStaff(@RequestBody StaffCreateRequest request, HttpServletRequest httpRequest) {
         // Validate required fields
         if (request.getStaffName() == null || request.getStaffName().isEmpty()) {
             return ResponseEntity.badRequest().build();
@@ -83,8 +81,8 @@ public class StaffApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        Staff staff = staffService.createStaff(updaterStaffId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(staffService.convertToResponse(staff));
+        StaffCreateResponse response = staffService.createStaffWithInitialLogin(updaterStaffId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{staffId}")

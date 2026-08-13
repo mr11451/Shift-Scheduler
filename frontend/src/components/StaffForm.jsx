@@ -358,8 +358,13 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
       });
 
       if (response.ok) {
-        setMessage(isEditMode ? "スタッフ情報を更新しました。" : "スタッフを登録しました。");
+        const responseData = await response.json();
+        const initialLoginInformation = responseData.initialLoginInformation;
+        setMessage(isEditMode ? "スタッフ情報を更新しました。" : initialLoginInformation?.emailSent ? "スタッフを登録し、初回ログイン情報をメールで送信しました。" : "スタッフを登録しました。");
         setMessageType("success");
+        if (!isEditMode && initialLoginInformation && !initialLoginInformation.emailSent) {
+          window.alert(`${initialLoginInformation.message}\n\nアクセスURL: ${initialLoginInformation.accessUrl}\nログインコード: ${initialLoginInformation.loginCode}\n初期パスワード: ${initialLoginInformation.initialPassword}`);
+        }
         if (onSuccess) {
           setTimeout(() => onSuccess(), 1500);
         }

@@ -1,0 +1,1 @@
+ALTER TABLE staffs ADD COLUMN password_changed_at TIMESTAMP;
