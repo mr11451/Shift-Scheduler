@@ -26,6 +26,8 @@ export default function AdminShiftEditTab() {
   const [shiftRequests, setShiftRequests] = useState({}); // key: staffId-date, value: request
   const [holidayDates, setHolidayDates] = useState([]);
   const [holidayWeekdays, setHolidayWeekdays] = useState([]);
+  const [maxConsecutiveWorkdays, setMaxConsecutiveWorkdays] = useState(0);
+  const [minimumShiftGapHours, setMinimumShiftGapHours] = useState(0);
   const [isCurrentMonthConfirmed, setIsCurrentMonthConfirmed] = useState(false);
   const [confirmingMonth, setConfirmingMonth] = useState(false);
   const [autoGenerating, setAutoGenerating] = useState(false);
@@ -156,14 +158,14 @@ export default function AdminShiftEditTab() {
     if (weekDay === 0) {
       return {
         backgroundColor: "#fff1f0",
-        color: "#c2410c",
+        color: "#111827",
       };
     }
 
     if (weekDay === 6) {
       return {
         backgroundColor: "#eff6ff",
-        color: "#1d4ed8",
+        color: "#111827",
       };
     }
 
@@ -183,13 +185,33 @@ export default function AdminShiftEditTab() {
       const settings = await res.json();
       const holidaySetting = Array.isArray(settings) ? settings.find((item) => item.settingKey === "holidayDates") : null;
       const holidayWeekdaySetting = Array.isArray(settings) ? settings.find((item) => item.settingKey === "holidayWeekdays") : null;
+      const autoShiftRuleSetting = Array.isArray(settings)
+        ? settings.find((item) => item.settingKey === "autoShiftGenerationRules")
+        : null;
       const rawValue = holidaySetting?.settingValueText || "";
       const rawWeekdays = holidayWeekdaySetting?.settingValueText || "";
       setHolidayDates(parseHolidayDates(rawValue));
       setHolidayWeekdays(parseHolidayWeekdays(rawWeekdays));
+
+      let parsedGapHours = 0;
+      let parsedMaxConsecutiveWorkdays = 0;
+      try {
+        const parsedRules = JSON.parse(autoShiftRuleSetting?.settingValueText || "{}");
+        const ruleGap = Number(parsedRules?.minimumShiftGapHours ?? 0);
+        const ruleMaxConsecutive = Number(parsedRules?.maxConsecutiveWorkdays ?? 0);
+        parsedGapHours = Number.isFinite(ruleGap) ? Math.max(0, ruleGap) : 0;
+        parsedMaxConsecutiveWorkdays = Number.isFinite(ruleMaxConsecutive) ? Math.max(0, ruleMaxConsecutive) : 0;
+      } catch (error) {
+        parsedGapHours = 0;
+        parsedMaxConsecutiveWorkdays = 0;
+      }
+      setMinimumShiftGapHours(parsedGapHours);
+      setMaxConsecutiveWorkdays(parsedMaxConsecutiveWorkdays);
     } catch (e) {
       setHolidayDates([]);
       setHolidayWeekdays([]);
+      setMinimumShiftGapHours(0);
+      setMaxConsecutiveWorkdays(0);
     }
   }
 
@@ -245,7 +267,29 @@ export default function AdminShiftEditTab() {
     }
 
     if (Array.isArray(value)) {
-      return value.map((item) => Number(item)).filter((item) => Number.isFinite(item));
+      const parsedIds = [];
+      value.forEach((item) => {
+        if (typeof item === "number") {
+          if (Number.isFinite(item)) {
+            parsedIds.push(item);
+          }
+          return;
+        }
+
+        if (item && typeof item === "object") {
+          const shiftTypeId = Number(item.shiftTypeId);
+          if (Number.isFinite(shiftTypeId)) {
+            parsedIds.push(shiftTypeId);
+          }
+          return;
+        }
+
+        const id = Number(item);
+        if (Number.isFinite(id)) {
+          parsedIds.push(id);
+        }
+      });
+      return parsedIds;
     }
 
     if (typeof value === "string") {
@@ -257,30 +301,337 @@ export default function AdminShiftEditTab() {
       try {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) {
-          return parsed.map((item) => Number(item)).filter((item) => Number.isFinite(item));
+          const parsedIds = [];
+          parsed.forEach((item) => {
+            if (typeof item === "number") {
+              if (Number.isFinite(item)) {
+                parsedIds.push(item);
+              }
+              return;
+            }
+
+            if (item && typeof item === "object") {
+              const shiftTypeId = Number(item.shiftTypeId);
+              if (Number.isFinite(shiftTypeId)) {
+                parsedIds.push(shiftTypeId);
+              }
+              return;
+            }
+
+            const id = Number(item);
+            if (Number.isFinite(id)) {
+              parsedIds.push(id);
+            }
+          });
+          return parsedIds;
         }
         if (parsed && Array.isArray(parsed.shiftTypeIds)) {
           return parsed.shiftTypeIds.map((item) => Number(item)).filter((item) => Number.isFinite(item));
         }
+        if (parsed && Array.isArray(parsed.ngShiftTypeIds)) {
+          return parsed.ngShiftTypeIds.map((item) => Number(item)).filter((item) => Number.isFinite(item));
+        }
+        if (parsed && Array.isArray(parsed.blockedShiftTypeIds)) {
+          return parsed.blockedShiftTypeIds.map((item) => Number(item)).filter((item) => Number.isFinite(item));
+        }
+        if (parsed && Number.isFinite(Number(parsed.shiftTypeId))) {
+          return [Number(parsed.shiftTypeId)];
+        }
       } catch (error) {
-        // Ignore legacy text values.
+        // Try legacy plain-text formats like "1,2,3".
+      }
+
+      const legacyIds = trimmed
+        .split(/[\r\n,;]+/)
+        .map((item) => Number(item.trim()))
+        .filter((item) => Number.isFinite(item));
+      if (legacyIds.length) {
+        return legacyIds;
       }
     }
 
     return [];
   }
 
-  function isStaffInNgShiftBand(staff, shiftTypeId) {
+  function parseWeekdayIds(value) {
+    if (!value) {
+      return [];
+    }
+
+    if (Array.isArray(value)) {
+      const weekdays = [];
+      value.forEach((item) => {
+        if (typeof item === "number") {
+          if (Number.isInteger(item) && item >= 0 && item <= 6) {
+            weekdays.push(item);
+          }
+          return;
+        }
+
+        if (item && typeof item === "object") {
+          const weekday = Number(item.weekdayId ?? item.weekday);
+          if (Number.isInteger(weekday) && weekday >= 0 && weekday <= 6) {
+            weekdays.push(weekday);
+          }
+        }
+      });
+      return weekdays;
+    }
+
+    if (typeof value !== "string") {
+      return [];
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && Array.isArray(parsed.weekdayIds)) {
+        return parsed.weekdayIds
+          .map((item) => Number(item))
+          .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6);
+      }
+
+      if (parsed && Array.isArray(parsed.ngShiftWeekdayIds)) {
+        return parsed.ngShiftWeekdayIds
+          .map((item) => Number(item))
+          .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6);
+      }
+
+      if (parsed && Array.isArray(parsed.weekdays)) {
+        return parsed.weekdays
+          .map((item) => Number(item))
+          .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6);
+      }
+
+      if (parsed && Array.isArray(parsed.weekDayIds)) {
+        return parsed.weekDayIds
+          .map((item) => Number(item))
+          .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6);
+      }
+
+      if (parsed && Number.isInteger(Number(parsed.weekdayId))) {
+        const weekday = Number(parsed.weekdayId);
+        return weekday >= 0 && weekday <= 6 ? [weekday] : [];
+      }
+
+      if (parsed && Number.isInteger(Number(parsed.weekDayId))) {
+        const weekday = Number(parsed.weekDayId);
+        return weekday >= 0 && weekday <= 6 ? [weekday] : [];
+      }
+
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => {
+            if (typeof item === "number") {
+              return Number(item);
+            }
+            if (item && typeof item === "object") {
+              return Number(item.weekdayId ?? item.weekday);
+            }
+            return Number.NaN;
+          })
+          .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6);
+      }
+    } catch (error) {
+      // Try legacy plain-text formats like "1,2,3".
+    }
+
+    return trimmed
+      .split(/[\r\n,;]+/)
+      .map((item) => Number(item.trim()))
+      .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6);
+  }
+
+  function buildNgCondition(staff) {
+    const typeIds = [
+      ...parseShiftTypeIds(staff?.ngShiftTypeIds),
+    ];
+
+    const weekdayIds = [
+      ...parseWeekdayIds(staff?.ngShiftWeekdayIds),
+      ...parseWeekdayIds(staff?.ngShiftTypeIds),
+    ];
+
+    return {
+      shiftTypeIds: [...new Set(typeIds)],
+      weekdayIds: [...new Set(weekdayIds)],
+    };
+  }
+
+  function parseTimeToMinutes(value) {
+    if (!value || typeof value !== "string") {
+      return null;
+    }
+
+    const parts = value.split(":");
+    if (parts.length < 2) {
+      return null;
+    }
+
+    const hours = Number(parts[0]);
+    const minutes = Number(parts[1]);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+      return null;
+    }
+
+    return hours * 60 + minutes;
+  }
+
+  function isNgWeekdayAllowed(day, weekdayIds) {
+    if (!weekdayIds.length) {
+      return true;
+    }
+    return weekdayIds.includes(getWeekday(day));
+  }
+
+  function isStaffInNgShiftBand(staff, shiftTypeId, day) {
+    if (!shiftTypeId || !Number.isInteger(day)) {
+      return false;
+    }
+
+    const ngCondition = buildNgCondition(staff);
+    const ngShiftTypeIds = ngCondition.shiftTypeIds;
+    const ngWeekdayIds = ngCondition.weekdayIds;
+    const isShiftTypeBlocked = ngShiftTypeIds.includes(Number(shiftTypeId));
+    const isWeekdayBlocked = ngWeekdayIds.includes(getWeekday(day));
+    return isShiftTypeBlocked || isWeekdayBlocked;
+  }
+
+  function findNearestAssignmentDate(staffId, targetDateString, direction) {
+    const dates = Object.values(shiftAssignments)
+      .filter((assignment) => Number(assignment.staffId) === Number(staffId))
+      .map((assignment) => assignment.workDate)
+      .filter(Boolean)
+      .sort();
+
+    if (direction === "prev") {
+      let prev = null;
+      dates.forEach((date) => {
+        if (date < targetDateString) {
+          prev = date;
+        }
+      });
+      return prev;
+    }
+
+    return dates.find((date) => date > targetDateString) || null;
+  }
+
+  function isMinimumShiftGapViolation(staffId, day, shiftTypeId) {
+    if (!shiftTypeId || minimumShiftGapHours <= 0) {
+      return false;
+    }
+
+    const targetShiftType = shiftTypes.find((item) => Number(item.id) === Number(shiftTypeId));
+    if (!targetShiftType) {
+      return false;
+    }
+
+    const targetStartMinutes = parseTimeToMinutes(targetShiftType.startTime);
+    const targetEndMinutes = parseTimeToMinutes(targetShiftType.endTime);
+    if (targetStartMinutes == null || targetEndMinutes == null) {
+      return false;
+    }
+
+    const targetDateString = toLocalDateStringByDay(currentDate.getFullYear(), currentDate.getMonth(), day);
+    const targetDate = new Date(`${targetDateString}T00:00:00`);
+    const targetStart = new Date(targetDate.getTime() + targetStartMinutes * 60 * 1000);
+
+    const prevDateString = findNearestAssignmentDate(staffId, targetDateString, "prev");
+    if (prevDateString) {
+      const prevAssignment = shiftAssignments[`${staffId}-${prevDateString}`];
+      const prevShiftType = shiftTypes.find((item) => Number(item.id) === Number(prevAssignment?.shiftTypeId));
+      const prevStartMinutes = parseTimeToMinutes(prevShiftType?.startTime);
+      const prevEndMinutes = parseTimeToMinutes(prevShiftType?.endTime);
+      if (prevStartMinutes != null && prevEndMinutes != null) {
+        const prevDate = new Date(`${prevDateString}T00:00:00`);
+        const prevEndDayOffset = prevEndMinutes <= prevStartMinutes ? 1 : 0;
+        const prevEnd = new Date(prevDate.getTime() + (prevEndMinutes + prevEndDayOffset * 24 * 60) * 60 * 1000);
+        const gapHours = (targetStart.getTime() - prevEnd.getTime()) / (60 * 60 * 1000);
+        if (gapHours < minimumShiftGapHours) {
+          return true;
+        }
+      }
+    }
+
+    const targetEndDayOffset = targetEndMinutes <= targetStartMinutes ? 1 : 0;
+    const targetEnd = new Date(targetDate.getTime() + (targetEndMinutes + targetEndDayOffset * 24 * 60) * 60 * 1000);
+
+    const nextDateString = findNearestAssignmentDate(staffId, targetDateString, "next");
+    if (nextDateString) {
+      const nextAssignment = shiftAssignments[`${staffId}-${nextDateString}`];
+      const nextShiftType = shiftTypes.find((item) => Number(item.id) === Number(nextAssignment?.shiftTypeId));
+      const nextStartMinutes = parseTimeToMinutes(nextShiftType?.startTime);
+      if (nextStartMinutes != null) {
+        const nextDate = new Date(`${nextDateString}T00:00:00`);
+        const nextStart = new Date(nextDate.getTime() + nextStartMinutes * 60 * 1000);
+        const gapHours = (nextStart.getTime() - targetEnd.getTime()) / (60 * 60 * 1000);
+        if (gapHours < minimumShiftGapHours) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  function isWorkShiftType(shiftTypeId) {
     if (!shiftTypeId) {
       return false;
     }
 
-    const ngShiftTypeIds = parseShiftTypeIds(staff?.ngShiftTypeIds ?? staff?.ngShiftTimeBands);
-    if (!ngShiftTypeIds.length) {
+    const shiftType = shiftTypes.find((item) => Number(item.id) === Number(shiftTypeId));
+    if (!shiftType) {
       return false;
     }
 
-    return ngShiftTypeIds.includes(Number(shiftTypeId));
+    return !shiftType.isOffType;
+  }
+
+  function isConsecutiveWorkdaysViolation(staffId, day, shiftTypeId) {
+    if (maxConsecutiveWorkdays <= 0) {
+      return false;
+    }
+
+    if (!isWorkShiftType(shiftTypeId)) {
+      return false;
+    }
+
+    const workedDays = new Set();
+    Object.values(shiftAssignments)
+      .filter((assignment) => Number(assignment.staffId) === Number(staffId))
+      .forEach((assignment) => {
+        if (!isWorkShiftType(assignment.shiftTypeId)) {
+          return;
+        }
+
+        const workDate = String(assignment.workDate || "");
+        const dayValue = Number(workDate.split("-")[2]);
+        if (Number.isInteger(dayValue)) {
+          workedDays.add(dayValue);
+        }
+      });
+
+    workedDays.add(Number(day));
+
+    let consecutive = 1;
+    let cursor = Number(day) - 1;
+    while (workedDays.has(cursor)) {
+      consecutive += 1;
+      cursor -= 1;
+    }
+
+    cursor = Number(day) + 1;
+    while (workedDays.has(cursor)) {
+      consecutive += 1;
+      cursor += 1;
+    }
+
+    return consecutive > maxConsecutiveWorkdays;
   }
 
   function isShiftMismatch(staff, shiftTypeId, day) {
@@ -780,9 +1131,10 @@ export default function AdminShiftEditTab() {
                     const assignment = shiftAssignments[cellKey];
                     const currentShiftTypeId = assignment ? String(assignment.shiftTypeId) : "";
                     const isMismatch = isShiftMismatch(staff, currentShiftTypeId, day);
-                    const isNgBandViolation = isStaffInNgShiftBand(staff, currentShiftTypeId);
-                    const isNgBandMatch = Boolean(currentShiftTypeId) && isStaffInNgShiftBand(staff, currentShiftTypeId);
-                    const shouldHighlightRed = isMismatch || isNgBandViolation || isNgBandMatch;
+                    const isNgBandViolation = isStaffInNgShiftBand(staff, currentShiftTypeId, day);
+                    const isShiftGapViolation = isMinimumShiftGapViolation(staff.id, day, currentShiftTypeId);
+                    const isConsecutiveViolation = isConsecutiveWorkdaysViolation(staff.id, day, currentShiftTypeId);
+                    const shouldHighlightRed = isMismatch || isNgBandViolation || isShiftGapViolation || isConsecutiveViolation;
 
                     if (isActive) {
                       return (
@@ -798,7 +1150,7 @@ export default function AdminShiftEditTab() {
                             border: "none",
                             borderRight: "1px solid var(--line)",
                             backgroundColor: weekendColumnStyle.backgroundColor,
-                            color: weekendColumnStyle.color,
+                            color: shouldHighlightRed ? "#b91c1c" : "#111827",
                           }}
                         >
                           <option value="">-</option>
@@ -823,14 +1175,12 @@ export default function AdminShiftEditTab() {
                           borderRight: "1px solid var(--line)",
                           backgroundColor: isHoliday
                             ? "#fef3c7"
-                            : shouldHighlightRed
-                              ? "#fef2f2"
-                              : weekendColumnStyle.backgroundColor,
+                            : weekendColumnStyle.backgroundColor,
                           color: isHoliday
                             ? "#b45309"
                             : shouldHighlightRed
                               ? "#b91c1c"
-                              : weekendColumnStyle.color,
+                              : "#111827",
                           cursor: isHoliday ? "not-allowed" : "pointer",
                         }}
                         title={isHoliday ? "休業日です" : "クリックしてシフトを選択"}

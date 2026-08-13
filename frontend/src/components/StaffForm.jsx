@@ -3,6 +3,16 @@ import "./StaffForm.css";
 import { fetchWithAuth } from "../utils/fetchWithAuth";
 import { AuthContext } from "../context/AuthContext";
 
+const WEEKDAY_OPTIONS = [
+  { value: 0, label: "日" },
+  { value: 1, label: "月" },
+  { value: 2, label: "火" },
+  { value: 3, label: "水" },
+  { value: 4, label: "木" },
+  { value: 5, label: "金" },
+  { value: 6, label: "土" },
+];
+
 export default function StaffForm({ staffId, onSuccess, onCancel }) {
   const { auth } = useContext(AuthContext);
   const canEditGroup = auth?.roleLevel === "MASTER";
@@ -10,14 +20,16 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     staffName: "",
     email: "",
     phone: "",
-    ngShiftTimeBands: "",
-    preferredShiftTimeBands: "",
+    ngShiftTypeIdsRaw: "",
+    preferredShiftTypeIdsRaw: "",
     responsibility: "",
     roleLevel: "MEMBER",
     groupId: null,
     qualificationIds: [],
     ngShiftTypeIds: [],
     preferredShiftTypeIds: [],
+    ngShiftWeekdayIds: [],
+    preferredShiftWeekdayIds: [],
     isActive: true,
   });
 
@@ -154,6 +166,41 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     return [];
   }
 
+  function parseShiftWeekdayIds(value) {
+    if (!value || typeof value !== "string") {
+      return [];
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      const weekdayIds = Array.isArray(parsed?.weekdayIds) ? parsed.weekdayIds : [];
+      return weekdayIds
+        .map((item) => Number(item))
+        .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function buildShiftPreferenceValue(shiftTypeIds, weekdayIds, fallbackValue) {
+    const normalizedShiftTypeIds = (shiftTypeIds || []).map((id) => Number(id)).filter((id) => Number.isFinite(id));
+    const normalizedWeekdayIds = (weekdayIds || []).map((id) => Number(id)).filter((id) => Number.isInteger(id) && id >= 0 && id <= 6);
+
+    if (normalizedShiftTypeIds.length === 0 && normalizedWeekdayIds.length === 0) {
+      return fallbackValue;
+    }
+
+    return JSON.stringify({
+      shiftTypeIds: normalizedShiftTypeIds,
+      weekdayIds: normalizedWeekdayIds,
+    });
+  }
+
   async function loadStaff(id) {
     try {
       const response = await fetchWithAuth(`/api/staffs/${id}`);
@@ -165,14 +212,16 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
           staffName: data.staffName,
           email: data.email || "",
           phone: data.phone || "",
-          ngShiftTimeBands: data.ngShiftTimeBands || "",
-          preferredShiftTimeBands: data.preferredShiftTimeBands || "",
+          ngShiftTypeIdsRaw: data.ngShiftTypeIds || "",
+          preferredShiftTypeIdsRaw: data.preferredShiftTypeIds || "",
           responsibility: data.responsibility,
           roleLevel: data.roleLevel,
           groupId: data.groupId ?? null,
           qualificationIds: data.qualificationIds || [],
-          ngShiftTypeIds: parseNgShiftTypeIds(data.ngShiftTypeIds ?? data.ngShiftTimeBands),
-          preferredShiftTypeIds: parseNgShiftTypeIds(data.preferredShiftTypeIds ?? data.preferredShiftTimeBands),
+          ngShiftTypeIds: parseNgShiftTypeIds(data.ngShiftTypeIds),
+          preferredShiftTypeIds: parseNgShiftTypeIds(data.preferredShiftTypeIds),
+          ngShiftWeekdayIds: parseShiftWeekdayIds(data.ngShiftTypeIds),
+          preferredShiftWeekdayIds: parseShiftWeekdayIds(data.preferredShiftTypeIds),
           isActive: data.isActive,
         });
       }
@@ -225,6 +274,24 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
           : currentIds.filter((id) => id !== selectedValue);
         return { ...prev, preferredShiftTypeIds: nextIds };
       });
+    } else if (name === "ngShiftWeekdayIds") {
+      const selectedValue = Number(value);
+      setForm((prev) => {
+        const currentIds = prev.ngShiftWeekdayIds || [];
+        const nextIds = checked
+          ? [...currentIds, selectedValue].sort((left, right) => left - right)
+          : currentIds.filter((id) => id !== selectedValue);
+        return { ...prev, ngShiftWeekdayIds: nextIds };
+      });
+    } else if (name === "preferredShiftWeekdayIds") {
+      const selectedValue = Number(value);
+      setForm((prev) => {
+        const currentIds = prev.preferredShiftWeekdayIds || [];
+        const nextIds = checked
+          ? [...currentIds, selectedValue].sort((left, right) => left - right)
+          : currentIds.filter((id) => id !== selectedValue);
+        return { ...prev, preferredShiftWeekdayIds: nextIds };
+      });
     } else {
       setForm((prev) => ({ ...prev, [name]: fieldValue }));
     }
@@ -237,13 +304,16 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     setMessageType("");
 
     const payload = {
-      ...form,
-      ngShiftTimeBands: form.ngShiftTypeIds && form.ngShiftTypeIds.length > 0
-        ? JSON.stringify({ shiftTypeIds: form.ngShiftTypeIds.map((id) => Number(id)) })
-        : form.ngShiftTimeBands,
-      preferredShiftTimeBands: form.preferredShiftTypeIds && form.preferredShiftTypeIds.length > 0
-        ? JSON.stringify({ shiftTypeIds: form.preferredShiftTypeIds.map((id) => Number(id)) })
-        : form.preferredShiftTimeBands,
+      staffName: form.staffName,
+      email: form.email,
+      phone: form.phone,
+      responsibility: form.responsibility,
+      roleLevel: form.roleLevel,
+      groupId: form.groupId,
+      qualificationIds: form.qualificationIds,
+      isActive: form.isActive,
+      ngShiftTypeIds: buildShiftPreferenceValue(form.ngShiftTypeIds, form.ngShiftWeekdayIds, form.ngShiftTypeIdsRaw),
+      preferredShiftTypeIds: buildShiftPreferenceValue(form.preferredShiftTypeIds, form.preferredShiftWeekdayIds, form.preferredShiftTypeIdsRaw),
     };
 
     // Validation
@@ -354,20 +424,6 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
             />
             <small>メンバ選択時は必須</small>
           </div>
-
-          <div className="form-group">
-            <label htmlFor="phone">電話番号</label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={form.phone}
-              onChange={onChange}
-              className="form-control"
-              pattern="[0-9\\-]*"
-              placeholder="例: 090-1234-5678"
-            />
-          </div>
         </div>
 
         <div className="form-row">
@@ -423,18 +479,34 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
                 <p style={{ color: "#999", fontSize: "0.9rem", margin: 0 }}>登録済みシフトタイプがありません</p>
               ) : (
                 shiftTypes.map((shiftType) => (
-                  <label key={shiftType.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                  <label key={shiftType.id} className="shift-option-label">
                     <input
                       type="checkbox"
                       name="ngShiftTypeIds"
                       value={shiftType.id}
                       checked={(form.ngShiftTypeIds || []).includes(Number(shiftType.id))}
                       onChange={onChange}
+                      className="shift-option-checkbox"
                     />
-                    <span>{shiftType.shiftName}{shiftType.startTime ? ` (${shiftType.startTime}〜${shiftType.endTime})` : ""}</span>
+                    <span className="shift-option-text">{shiftType.shiftName}{shiftType.startTime ? ` (${shiftType.startTime}〜${shiftType.endTime})` : ""}</span>
                   </label>
                 ))
               )}
+            </div>
+            <div className="shift-weekday-row">
+              {WEEKDAY_OPTIONS.map((weekday) => (
+                <label key={`ng-weekday-${weekday.value}`} className="shift-weekday-label">
+                  <input
+                    type="checkbox"
+                    name="ngShiftWeekdayIds"
+                    value={weekday.value}
+                    checked={(form.ngShiftWeekdayIds || []).includes(weekday.value)}
+                    onChange={onChange}
+                    className="shift-option-checkbox"
+                  />
+                  <span>{weekday.label}</span>
+                </label>
+              ))}
             </div>
             <small>避けたいシフトタイプを選択してください。これは自動生成時の強い制約になります。</small>
           </div>
@@ -442,24 +514,40 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
 
         <div className="form-row full">
           <div className="form-group">
-            <label>希望シフト帯</label>
+            <label>希望シフト</label>
             <div style={{ display: "grid", gap: "0.6rem", marginTop: "0.5rem" }}>
               {shiftTypes.length === 0 ? (
                 <p style={{ color: "#999", fontSize: "0.9rem", margin: 0 }}>登録済みシフトタイプがありません</p>
               ) : (
                 shiftTypes.map((shiftType) => (
-                  <label key={`preferred-${shiftType.id}`} style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                  <label key={`preferred-${shiftType.id}`} className="shift-option-label">
                     <input
                       type="checkbox"
                       name="preferredShiftTypeIds"
                       value={shiftType.id}
                       checked={(form.preferredShiftTypeIds || []).includes(Number(shiftType.id))}
                       onChange={onChange}
+                      className="shift-option-checkbox"
                     />
-                    <span>{shiftType.shiftName}{shiftType.startTime ? ` (${shiftType.startTime}〜${shiftType.endTime})` : ""}</span>
+                    <span className="shift-option-text">{shiftType.shiftName}{shiftType.startTime ? ` (${shiftType.startTime}〜${shiftType.endTime})` : ""}</span>
                   </label>
                 ))
               )}
+            </div>
+            <div className="shift-weekday-row">
+              {WEEKDAY_OPTIONS.map((weekday) => (
+                <label key={`preferred-weekday-${weekday.value}`} className="shift-weekday-label">
+                  <input
+                    type="checkbox"
+                    name="preferredShiftWeekdayIds"
+                    value={weekday.value}
+                    checked={(form.preferredShiftWeekdayIds || []).includes(weekday.value)}
+                    onChange={onChange}
+                    className="shift-option-checkbox"
+                  />
+                  <span>{weekday.label}</span>
+                </label>
+              ))}
             </div>
             <small>希望するシフトタイプを選択してください。これは自動生成時の優先度を少し上げるだけの弱い好みです。</small>
           </div>

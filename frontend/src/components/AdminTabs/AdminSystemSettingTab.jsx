@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { parseHolidayDatesFromCsv, parseHolidayWeekdays } from "../../utils/holidayDates";
+import { DEFAULT_ROLE_LABELS, parseRoleLabels } from "../../utils/roleLabels";
 
 const WEEKDAY_OPTIONS = [
   { value: 0, label: "日" },
@@ -17,6 +18,7 @@ const SETTING_KEYS = {
   memberLoginNotificationBaseUrl: "memberLoginNotificationBaseUrl",
   holidayDates: "holidayDates",
   holidayWeekdays: "holidayWeekdays",
+  roleLabels: "roleLabels",
 };
 
 export default function AdminSystemSettingTab({ onCancel }) {
@@ -27,6 +29,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
     memberLoginNotificationBaseUrl: "https://example.com",
     holidayDates: "",
     holidayWeekdays: [],
+    roleLabels: { ...DEFAULT_ROLE_LABELS },
   });
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
@@ -74,6 +77,8 @@ export default function AdminSystemSettingTab({ onCancel }) {
           settingMap.get(SETTING_KEYS.holidayDates)?.settingValueText || "",
         holidayWeekdays:
           parseHolidayWeekdays(settingMap.get(SETTING_KEYS.holidayWeekdays)?.settingValueText || ""),
+        roleLabels:
+          parseRoleLabels(settingMap.get(SETTING_KEYS.roleLabels)?.settingValueText || ""),
       });
     } catch (e) {
       setMessage(e.message);
@@ -101,6 +106,16 @@ export default function AdminSystemSettingTab({ onCancel }) {
         holidayWeekdays: nextWeekdays,
       };
     });
+  }
+
+  function handleRoleLabelChange(roleKey, value) {
+    setSettings((prev) => ({
+      ...prev,
+      roleLabels: {
+        ...prev.roleLabels,
+        [roleKey]: value,
+      },
+    }));
   }
 
   async function handleHolidayCsvImport(e) {
@@ -166,6 +181,12 @@ export default function AdminSystemSettingTab({ onCancel }) {
         ),
         authFetchNoRedirect(
           `/api/system-settings/${SETTING_KEYS.holidayWeekdays}/text?value=${encodeURIComponent(settings.holidayWeekdays.join(","))}`,
+          {
+            method: "PUT",
+          }
+        ),
+        authFetchNoRedirect(
+          `/api/system-settings/${SETTING_KEYS.roleLabels}/text?value=${encodeURIComponent(JSON.stringify(settings.roleLabels))}`,
           {
             method: "PUT",
           }
@@ -355,6 +376,45 @@ export default function AdminSystemSettingTab({ onCancel }) {
             <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.35rem" }}>
               チェックした曜日は毎週の休業日として扱われます。保存時に DB へ登録されます。
             </div>
+          </div>
+        </div>
+
+        <div style={{ borderBottom: "1px solid var(--line)", paddingBottom: "1.5rem" }}>
+          <h3 style={{ marginTop: 0, marginBottom: "1rem" }}>ロール表示ラベル</h3>
+          <div style={{ display: "grid", gap: "0.75rem" }}>
+            <label style={{ display: "grid", gap: "0.35rem" }}>
+              <span style={{ fontWeight: 600 }}>MASTER ラベル</span>
+              <input
+                type="text"
+                value={settings.roleLabels.MASTER}
+                onChange={(e) => handleRoleLabelChange("MASTER", e.target.value)}
+                placeholder="マスター"
+                style={{ width: "100%", padding: "0.65rem", border: "1px solid var(--line)", borderRadius: "4px" }}
+              />
+            </label>
+            <label style={{ display: "grid", gap: "0.35rem" }}>
+              <span style={{ fontWeight: 600 }}>CHIEF ラベル</span>
+              <input
+                type="text"
+                value={settings.roleLabels.CHIEF}
+                onChange={(e) => handleRoleLabelChange("CHIEF", e.target.value)}
+                placeholder="チーフ"
+                style={{ width: "100%", padding: "0.65rem", border: "1px solid var(--line)", borderRadius: "4px" }}
+              />
+            </label>
+            <label style={{ display: "grid", gap: "0.35rem" }}>
+              <span style={{ fontWeight: 600 }}>MEMBER ラベル</span>
+              <input
+                type="text"
+                value={settings.roleLabels.MEMBER}
+                onChange={(e) => handleRoleLabelChange("MEMBER", e.target.value)}
+                placeholder="メンバー"
+                style={{ width: "100%", padding: "0.65rem", border: "1px solid var(--line)", borderRadius: "4px" }}
+              />
+            </label>
+          </div>
+          <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.5rem" }}>
+            保存すると、ロール表示テキストに反映されます。
           </div>
         </div>
 

@@ -11,9 +11,9 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -22,7 +22,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -60,18 +59,14 @@ class ShiftAssignmentServiceTests {
     @Mock
     private SystemSettingService systemSettingService;
 
-    @Spy
-    private ObjectMapper objectMapper = new ObjectMapper();
-
     @Mock
     private AccessControlService accessControlService;
 
     @InjectMocks
     private ShiftAssignmentService shiftAssignmentService;
-    
-    @BeforeEach
-    void setUp() {
-        ReflectionTestUtils.setField(shiftAssignmentService, "objectMapper", objectMapper);
+
+    private void configureObjectMapper() {
+        ReflectionTestUtils.setField(shiftAssignmentService, "objectMapper", new ObjectMapper());
     }
 
     @Test
@@ -367,7 +362,7 @@ class ShiftAssignmentServiceTests {
 
         Staff staffA = createStaff(1L, "STF-00001", null);
         Staff staffB = createStaff(2L, "STF-00002", null);
-        Staff staffC = createStaff(3L, "STF-00003", "09:00-18:00");
+        Staff staffC = createStaff(3L, "STF-00003", "{\"shiftTypeIds\":[10]}");
 
         ShiftType workShift = new ShiftType();
         workShift.setId(10L);
@@ -606,7 +601,7 @@ class ShiftAssignmentServiceTests {
     }
 
     @Test
-    void autoGenerateShiftAssignments_respectsNgShiftTimeBands() throws Exception {
+    void autoGenerateShiftAssignments_respectsBlockedShiftTypes() throws Exception {
         Staff editor = new Staff();
         editor.setId(60L);
         editor.setStaffCode("STF-99960");
@@ -614,7 +609,7 @@ class ShiftAssignmentServiceTests {
         editor.setRoleLevel(RoleLevel.MASTER);
         editor.setIsActive(true);
 
-        Staff blockedStaff = createStaff(1L, "STF-00001", "09:00-12:00");
+        Staff blockedStaff = createStaff(1L, "STF-00001", "{\"shiftTypeIds\":[10]}");
 
         ShiftType workShift = new ShiftType();
         workShift.setId(10L);
@@ -638,12 +633,12 @@ class ShiftAssignmentServiceTests {
         AutoShiftGenerationResultResponse result = shiftAssignmentService.autoGenerateShiftAssignments(60L, 2026, 8);
 
         assertEquals(0, result.getGeneratedCount());
-        assertTrue(result.getUnmetConditions().size() > 0);
+        assertTrue(!result.getUnmetConditions().isEmpty());
         assertEquals("早番", result.getUnmetConditions().get(0).getShiftTypeName());
     }
 
     @Test
-    void autoGenerateShiftAssignments_prioritizesNgShiftTimeBandsOverOtherRules() throws Exception {
+    void autoGenerateShiftAssignments_prioritizesBlockedShiftTypesOverOtherRules() throws Exception {
         Staff editor = new Staff();
         editor.setId(61L);
         editor.setStaffCode("STF-99961");
@@ -651,7 +646,7 @@ class ShiftAssignmentServiceTests {
         editor.setRoleLevel(RoleLevel.MASTER);
         editor.setIsActive(true);
 
-        Staff blockedStaff = createStaff(1L, "STF-00001", "09:00-18:00");
+        Staff blockedStaff = createStaff(1L, "STF-00001", "{\"shiftTypeIds\":[10]}");
         Staff allowedStaff = createStaff(2L, "STF-00002", null);
 
         ShiftType workShift = new ShiftType();
@@ -683,6 +678,184 @@ class ShiftAssignmentServiceTests {
         assertTrue(captor.getValue().stream().anyMatch(assignment -> allowedStaff.getId().equals(assignment.getStaff().getId())));
     }
 
+        @Test
+        void autoGenerateShiftAssignments_blocksByNgShiftOrWeekday() throws Exception {
+            configureObjectMapper();
+
+        Staff editor = new Staff();
+        editor.setId(62L);
+        editor.setStaffCode("STF-99962");
+        editor.setStaffName("管理者");
+        editor.setRoleLevel(RoleLevel.MASTER);
+        editor.setIsActive(true);
+
+        Staff blockedStaff = createStaff(1L, "STF-00001", "{\"shiftTypeIds\":[10],\"weekdayIds\":[6]}");
+
+        ShiftType workShift = new ShiftType();
+        workShift.setId(10L);
+        workShift.setShiftCode("A");
+        workShift.setShiftName("早番");
+        workShift.setStartTime(LocalTime.of(9, 0));
+        workShift.setEndTime(LocalTime.of(18, 0));
+        workShift.setIsActive(true);
+
+        when(staffRepository.findById(62L)).thenReturn(Optional.of(editor));
+        when(staffRepository.findAllByIsActiveTrue()).thenReturn(List.of(editor, blockedStaff));
+        when(accessControlService.canEditShift(editor, editor)).thenReturn(false);
+        when(accessControlService.canEditShift(editor, blockedStaff)).thenReturn(true);
+        when(shiftTypeRepository.findAllActiveWorkShifts()).thenReturn(List.of(workShift));
+        when(shiftAssignmentRepository.findByStaffIdInAndWorkDateBetween(any(), any(), any())).thenReturn(List.of());
+        when(shiftRequestRepository.findByStaffIdInAndWorkDateBetween(any(), any(), any())).thenReturn(List.of());
+        when(systemSettingService.isMonthConfirmed(2026, 8)).thenReturn(false);
+        when(systemSettingService.getSystemSettingTextValue("autoShiftGenerationRules")).thenReturn(
+            "{\"requiredCounts\":{\"10\":1},\"monthlyMaxWorkdaysMode\":\"FIXED\",\"monthlyMaxWorkdays\":40,\"maxConsecutiveWorkdays\":40,\"minimumRestDays\":0,\"desiredShiftMode\":\"IGNORE\",\"existingShiftHandling\":\"ONLY_EMPTY\"}");
+
+        AutoShiftGenerationResultResponse result = shiftAssignmentService.autoGenerateShiftAssignments(62L, 2026, 8);
+
+        assertEquals(0, result.getGeneratedCount());
+        assertEquals(31, result.getUnassignedRequiredCount());
+        }
+
+        @Test
+        void autoGenerateShiftAssignments_prefersMatchingWeekdayPreferenceOnGenerationDay() throws Exception {
+            configureObjectMapper();
+
+        Staff editor = new Staff();
+        editor.setId(63L);
+        editor.setStaffCode("STF-99963");
+        editor.setStaffName("管理者");
+        editor.setRoleLevel(RoleLevel.MASTER);
+        editor.setIsActive(true);
+
+        Staff preferredStaff = createStaff(1L, "STF-00001", null);
+        preferredStaff.setPreferredShiftTypeIds("{\"shiftTypeIds\":[10],\"weekdayIds\":[6]}");
+        Staff otherStaff = createStaff(2L, "STF-00002", null);
+
+        ShiftType workShift = new ShiftType();
+        workShift.setId(10L);
+        workShift.setShiftCode("A");
+        workShift.setShiftName("早番");
+        workShift.setStartTime(LocalTime.of(9, 0));
+        workShift.setEndTime(LocalTime.of(18, 0));
+        workShift.setIsActive(true);
+
+        when(staffRepository.findById(63L)).thenReturn(Optional.of(editor));
+        when(staffRepository.findAllByIsActiveTrue()).thenReturn(List.of(editor, preferredStaff, otherStaff));
+        when(accessControlService.canEditShift(editor, editor)).thenReturn(false);
+        when(accessControlService.canEditShift(editor, preferredStaff)).thenReturn(true);
+        when(accessControlService.canEditShift(editor, otherStaff)).thenReturn(true);
+        when(shiftTypeRepository.findAllActiveWorkShifts()).thenReturn(List.of(workShift));
+        when(shiftAssignmentRepository.findByStaffIdInAndWorkDateBetween(any(), any(), any())).thenReturn(List.of());
+        when(shiftRequestRepository.findByStaffIdInAndWorkDateBetween(any(), any(), any())).thenReturn(List.of());
+        when(systemSettingService.isMonthConfirmed(2026, 8)).thenReturn(false);
+        when(systemSettingService.getSystemSettingTextValue("autoShiftGenerationRules")).thenReturn(
+            "{\"requiredCounts\":{\"10\":1},\"monthlyMaxWorkdaysMode\":\"FIXED\",\"monthlyMaxWorkdays\":40,\"maxConsecutiveWorkdays\":40,\"minimumRestDays\":0,\"desiredShiftMode\":\"IGNORE\",\"existingShiftHandling\":\"ONLY_EMPTY\"}");
+
+        AutoShiftGenerationResultResponse result = shiftAssignmentService.autoGenerateShiftAssignments(63L, 2026, 8);
+
+        assertTrue(result.getGeneratedCount() > 0);
+
+        ArgumentCaptor<List<ShiftAssignment>> captor = ArgumentCaptor.forClass(List.class);
+        verify(shiftAssignmentRepository).saveAll(captor.capture());
+        ShiftAssignment firstDayAssignment = captor.getValue().stream()
+            .filter(assignment -> LocalDate.of(2026, 8, 1).equals(assignment.getWorkDate()))
+            .findFirst()
+            .orElseThrow();
+        assertEquals(preferredStaff.getId(), firstDayAssignment.getStaff().getId());
+        }
+
+    @Test
+    void autoGenerateShiftAssignments_respectsNgWeekdayWithStringAndSingularJsonFormats() throws Exception {
+        configureObjectMapper();
+
+        Staff editor = new Staff();
+        editor.setId(64L);
+        editor.setStaffCode("STF-99964");
+        editor.setStaffName("管理者");
+        editor.setRoleLevel(RoleLevel.MASTER);
+        editor.setIsActive(true);
+
+        Staff blockedStaff = createStaff(1L, "STF-00001", "{\"shiftTypeId\":\"10\",\"weekdayIds\":[\"6\"]}");
+        Staff otherStaff = createStaff(2L, "STF-00002", null);
+
+        ShiftType workShift = new ShiftType();
+        workShift.setId(10L);
+        workShift.setShiftCode("A");
+        workShift.setShiftName("早番");
+        workShift.setStartTime(LocalTime.of(9, 0));
+        workShift.setEndTime(LocalTime.of(18, 0));
+        workShift.setIsActive(true);
+
+        when(staffRepository.findById(64L)).thenReturn(Optional.of(editor));
+        when(staffRepository.findAllByIsActiveTrue()).thenReturn(List.of(editor, blockedStaff, otherStaff));
+        when(accessControlService.canEditShift(editor, editor)).thenReturn(false);
+        when(accessControlService.canEditShift(editor, blockedStaff)).thenReturn(true);
+        when(accessControlService.canEditShift(editor, otherStaff)).thenReturn(true);
+        when(shiftTypeRepository.findAllActiveWorkShifts()).thenReturn(List.of(workShift));
+        when(shiftAssignmentRepository.findByStaffIdInAndWorkDateBetween(any(), any(), any())).thenReturn(List.of());
+        when(shiftRequestRepository.findByStaffIdInAndWorkDateBetween(any(), any(), any())).thenReturn(List.of());
+        when(systemSettingService.isMonthConfirmed(2026, 8)).thenReturn(false);
+        when(systemSettingService.getSystemSettingTextValue("autoShiftGenerationRules")).thenReturn(
+            "{\"requiredCounts\":{\"10\":1},\"monthlyMaxWorkdaysMode\":\"FIXED\",\"monthlyMaxWorkdays\":40,\"maxConsecutiveWorkdays\":40,\"minimumRestDays\":0,\"desiredShiftMode\":\"IGNORE\",\"existingShiftHandling\":\"ONLY_EMPTY\"}");
+
+        AutoShiftGenerationResultResponse result = shiftAssignmentService.autoGenerateShiftAssignments(64L, 2026, 8);
+        assertTrue(result.getGeneratedCount() > 0);
+
+        ArgumentCaptor<List<ShiftAssignment>> captor = ArgumentCaptor.forClass(List.class);
+        verify(shiftAssignmentRepository).saveAll(captor.capture());
+
+        boolean blockedAssignedOnSaturday = captor.getValue().stream()
+            .anyMatch(assignment -> assignment.getStaff().getId().equals(blockedStaff.getId())
+                && assignment.getWorkDate().getDayOfWeek().getValue() % 7 == 6);
+        assertFalse(blockedAssignedOnSaturday);
+    }
+
+    @Test
+    void autoGenerateShiftAssignments_respectsNgWeekdayWithWeekDayIdsAlias() throws Exception {
+        configureObjectMapper();
+
+        Staff editor = new Staff();
+        editor.setId(65L);
+        editor.setStaffCode("STF-99965");
+        editor.setStaffName("管理者");
+        editor.setRoleLevel(RoleLevel.MASTER);
+        editor.setIsActive(true);
+
+        Staff blockedStaff = createStaff(1L, "STF-00001", "{\"shiftTypeIds\":[10],\"weekDayIds\":[6]}");
+        Staff otherStaff = createStaff(2L, "STF-00002", null);
+
+        ShiftType workShift = new ShiftType();
+        workShift.setId(10L);
+        workShift.setShiftCode("A");
+        workShift.setShiftName("早番");
+        workShift.setStartTime(LocalTime.of(9, 0));
+        workShift.setEndTime(LocalTime.of(18, 0));
+        workShift.setIsActive(true);
+
+        when(staffRepository.findById(65L)).thenReturn(Optional.of(editor));
+        when(staffRepository.findAllByIsActiveTrue()).thenReturn(List.of(editor, blockedStaff, otherStaff));
+        when(accessControlService.canEditShift(editor, editor)).thenReturn(false);
+        when(accessControlService.canEditShift(editor, blockedStaff)).thenReturn(true);
+        when(accessControlService.canEditShift(editor, otherStaff)).thenReturn(true);
+        when(shiftTypeRepository.findAllActiveWorkShifts()).thenReturn(List.of(workShift));
+        when(shiftAssignmentRepository.findByStaffIdInAndWorkDateBetween(any(), any(), any())).thenReturn(List.of());
+        when(shiftRequestRepository.findByStaffIdInAndWorkDateBetween(any(), any(), any())).thenReturn(List.of());
+        when(systemSettingService.isMonthConfirmed(2026, 8)).thenReturn(false);
+        when(systemSettingService.getSystemSettingTextValue("autoShiftGenerationRules")).thenReturn(
+            "{\"requiredCounts\":{\"10\":1},\"monthlyMaxWorkdaysMode\":\"FIXED\",\"monthlyMaxWorkdays\":40,\"maxConsecutiveWorkdays\":40,\"minimumRestDays\":0,\"desiredShiftMode\":\"IGNORE\",\"existingShiftHandling\":\"ONLY_EMPTY\"}");
+
+        AutoShiftGenerationResultResponse result = shiftAssignmentService.autoGenerateShiftAssignments(65L, 2026, 8);
+        assertTrue(result.getGeneratedCount() > 0);
+
+        ArgumentCaptor<List<ShiftAssignment>> captor = ArgumentCaptor.forClass(List.class);
+        verify(shiftAssignmentRepository).saveAll(captor.capture());
+
+        boolean blockedAssignedOnSaturday = captor.getValue().stream()
+            .anyMatch(assignment -> assignment.getStaff().getId().equals(blockedStaff.getId())
+                && assignment.getWorkDate().getDayOfWeek().getValue() % 7 == 6);
+        assertFalse(blockedAssignedOnSaturday);
+    }
+
     @Test
     void autoGenerateShiftAssignments_reportsUnmetConditionsAfterRetries() throws Exception {
         Staff editor = new Staff();
@@ -692,7 +865,7 @@ class ShiftAssignmentServiceTests {
         editor.setRoleLevel(RoleLevel.MASTER);
         editor.setIsActive(true);
 
-        Staff blockedStaff = createStaff(1L, "STF-00001", "09:00-18:00");
+        Staff blockedStaff = createStaff(1L, "STF-00001", "{\"shiftTypeIds\":[10]}");
 
         ShiftType workShift = new ShiftType();
         workShift.setId(10L);
@@ -938,14 +1111,14 @@ class ShiftAssignmentServiceTests {
         return constructor.newInstance(new Staff(), false, false, monthlyWorkCount, recentWorkCount, consecutiveDays, lastWorkedDate);
     }
 
-    private Staff createStaff(Long id, String staffCode, String ngShiftTimeBands) {
+    private Staff createStaff(Long id, String staffCode, String ngShiftTypeIds) {
         Staff staff = new Staff();
         staff.setId(id);
         staff.setStaffCode(staffCode);
         staff.setStaffName(staffCode);
         staff.setRoleLevel(RoleLevel.MEMBER);
         staff.setIsActive(true);
-        staff.setNgShiftTimeBands(ngShiftTimeBands);
+        staff.setNgShiftTypeIds(ngShiftTypeIds);
         return staff;
     }
 

@@ -265,9 +265,10 @@ public class ShiftAssignmentService {
 
     Map<Long, Staff> staffById;
     Map<Long, ShiftType> shiftTypeById;
-    Map<Long, List<TimeBand>> ngTimeBandsByStaffId;
     Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId;
+    Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId;
     Map<Long, Set<Long>> preferredShiftTypeIdsByStaffId;
+    Map<Long, Set<Integer>> preferredShiftWeekdayIdsByStaffId;
 
     List<ShiftRequest> requests;
     Map<String, ShiftRequest> requestByKey;
@@ -365,19 +366,14 @@ public class ShiftAssignmentService {
     Map<Long, ShiftType> shiftTypeById =
         activeWorkShiftTypes.stream().collect(Collectors.toMap(ShiftType::getId, Function.identity()));
 
-    Map<Long, List<TimeBand>> ngTimeBandsByStaffId = editableStaffs.stream()
-        .collect(Collectors.toMap(Staff::getId, staff -> parseNgTimeBands(staff.getNgShiftTimeBands())));
     Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId = editableStaffs.stream()
-        .collect(Collectors.toMap(Staff::getId, staff -> parseBlockedShiftTypeIds(staff.getNgShiftTimeBands())));
-    Map<Long, Set<Long>> preferredShiftTypeIdsByStaffId = new HashMap<>();
-    editableStaffs.stream()
-        .map(Staff::getId)
-        .forEach(staffId -> preferredShiftTypeIdsByStaffId.put(staffId, parseBlockedShiftTypeIds(
-            editableStaffs.stream()
-                .filter(staff -> staff.getId().equals(staffId))
-                .findFirst()
-                .map(Staff::getPreferredShiftTimeBands)
-                .orElse(null))));
+        .collect(Collectors.toMap(Staff::getId, staff -> parseBlockedShiftTypeIds(staff.getNgShiftTypeIds())));
+    Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId = editableStaffs.stream()
+      .collect(Collectors.toMap(Staff::getId, staff -> parseShiftPreferenceWeekdayIds(staff.getNgShiftTypeIds())));
+    Map<Long, Set<Long>> preferredShiftTypeIdsByStaffId = editableStaffs.stream()
+      .collect(Collectors.toMap(Staff::getId, staff -> parseBlockedShiftTypeIds(staff.getPreferredShiftTypeIds())));
+    Map<Long, Set<Integer>> preferredShiftWeekdayIdsByStaffId = editableStaffs.stream()
+      .collect(Collectors.toMap(Staff::getId, staff -> parseShiftPreferenceWeekdayIds(staff.getPreferredShiftTypeIds())));
 
     List<Long> staffIds = editableStaffs.stream().map(Staff::getId).toList();
 
@@ -399,9 +395,10 @@ public class ShiftAssignmentService {
     ctx.activeWorkShiftTypes = activeWorkShiftTypes;
     ctx.staffById = staffById;
     ctx.shiftTypeById = shiftTypeById;
-    ctx.ngTimeBandsByStaffId = ngTimeBandsByStaffId;
     ctx.blockedShiftTypeIdsByStaffId = blockedShiftTypeIdsByStaffId;
+    ctx.blockedShiftWeekdayIdsByStaffId = blockedShiftWeekdayIdsByStaffId;
     ctx.preferredShiftTypeIdsByStaffId = preferredShiftTypeIdsByStaffId;
+    ctx.preferredShiftWeekdayIdsByStaffId = preferredShiftWeekdayIdsByStaffId;
     ctx.requests = requests;
     ctx.requestByKey = requestByKey;
 
@@ -458,8 +455,8 @@ public class ShiftAssignmentService {
         ctx.rules,
         ctx.staffById,
         ctx.shiftTypeById,
-        ctx.ngTimeBandsByStaffId,
         ctx.blockedShiftTypeIdsByStaffId,
+        ctx.blockedShiftWeekdayIdsByStaffId,
         ctx.requestByKey,
         assignmentByKey,
         workedDaysByStaff,
@@ -475,8 +472,10 @@ public class ShiftAssignmentService {
             ctx.rules,
             ctx.staffById,
             ctx.shiftTypeById,
-            ctx.ngTimeBandsByStaffId,
             ctx.blockedShiftTypeIdsByStaffId,
+            ctx.blockedShiftWeekdayIdsByStaffId,
+            ctx.preferredShiftTypeIdsByStaffId,
+            ctx.preferredShiftWeekdayIdsByStaffId,
             ctx.requestByKey,
             assignmentByKey,
             workedDaysByStaff,
@@ -497,8 +496,8 @@ public class ShiftAssignmentService {
       AutoShiftGenerationRules rules,
       Map<Long, Staff> staffById,
       Map<Long, ShiftType> shiftTypeById,
-      Map<Long, List<TimeBand>> ngTimeBandsByStaffId,
       Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId,
+      Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId,
       Map<String, ShiftRequest> requestByKey,
       Map<String, ShiftAssignment> assignmentByKey,
       Map<Long, Set<LocalDate>> workedDaysByStaff,
@@ -542,8 +541,8 @@ public class ShiftAssignmentService {
           workedDaysByStaff,
           rules,
           shiftTypeById,
-          ngTimeBandsByStaffId,
           blockedShiftTypeIdsByStaffId,
+          blockedShiftWeekdayIdsByStaffId,
           requestByKey,
           true,
           false
@@ -570,8 +569,10 @@ public class ShiftAssignmentService {
       AutoShiftGenerationRules rules,
       Map<Long, Staff> staffById,
       Map<Long, ShiftType> shiftTypeById,
-      Map<Long, List<TimeBand>> ngTimeBandsByStaffId,
       Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId,
+      Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId,
+      Map<Long, Set<Long>> preferredShiftTypeIdsByStaffId,
+      Map<Long, Set<Integer>> preferredShiftWeekdayIdsByStaffId,
       Map<String, ShiftRequest> requestByKey,
       Map<String, ShiftAssignment> assignmentByKey,
       Map<Long, Set<LocalDate>> workedDaysByStaff,
@@ -603,8 +604,8 @@ public class ShiftAssignmentService {
                 workedDaysByStaff,
                 rules,
                 shiftTypeById,
-                ngTimeBandsByStaffId,
                 blockedShiftTypeIdsByStaffId,
+                blockedShiftWeekdayIdsByStaffId,
                 requestByKey,
                 false,
                 true);
@@ -617,8 +618,8 @@ public class ShiftAssignmentService {
                 workedDaysByStaff,
                 rules,
                 shiftTypeById,
-                ngTimeBandsByStaffId,
                 blockedShiftTypeIdsByStaffId,
+                blockedShiftWeekdayIdsByStaffId,
                 requestByKey,
                 false,
                 true);
@@ -651,8 +652,10 @@ public class ShiftAssignmentService {
               workedDaysByStaff,
               rules,
               shiftTypeById,
-              ngTimeBandsByStaffId,
               blockedShiftTypeIdsByStaffId,
+                blockedShiftWeekdayIdsByStaffId,
+                preferredShiftTypeIdsByStaffId,
+                preferredShiftWeekdayIdsByStaffId,
               requestByKey
           );
 
@@ -703,7 +706,13 @@ public class ShiftAssignmentService {
     response.setSkippedHolidayCount(0);
     response.setConsideredRequestCount(ctx.requests.size());
     response.setGeneratedCount(bestAttempt != null ? bestAttempt.generatedAssignments.size() : 0);
-    response.setUnassignedRequiredCount(bestAttempt != null ? bestAttempt.unassignedRequiredCount : 0);
+    int shortageCount = 0;
+    if (bestAttempt != null && bestAttempt.unmetConditions != null) {
+      shortageCount = bestAttempt.unmetConditions.stream()
+          .mapToInt(AutoShiftGenerationResultResponse.UnmetCondition::getShortageCount)
+          .sum();
+    }
+    response.setUnassignedRequiredCount((bestAttempt != null ? bestAttempt.unassignedRequiredCount : 0) + shortageCount);
     response.setRetryCount(Math.max(0, attemptsPerformed - 1));
     response.setUnmetConditions(bestAttempt != null ? bestAttempt.unmetConditions : List.of());
     return response;
@@ -754,8 +763,10 @@ public class ShiftAssignmentService {
       Map<Long, Set<LocalDate>> workedDaysByStaff,
       AutoShiftGenerationRules rules,
       Map<Long, ShiftType> shiftTypeById,
-      Map<Long, List<TimeBand>> ngTimeBandsByStaffId,
       Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId,
+      Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId,
+      Map<Long, Set<Long>> preferredShiftTypeIdsByStaffId,
+      Map<Long, Set<Integer>> preferredShiftWeekdayIdsByStaffId,
       Map<String, ShiftRequest> requestByKey) {
 
     List<Staff> candidates = collectAssignableCandidates(
@@ -767,8 +778,8 @@ public class ShiftAssignmentService {
         workedDaysByStaff,
         rules,
         shiftTypeById,
-        ngTimeBandsByStaffId,
         blockedShiftTypeIdsByStaffId,
+        blockedShiftWeekdayIdsByStaffId,
         requestByKey,
         false,
         false);
@@ -783,8 +794,8 @@ public class ShiftAssignmentService {
           workedDaysByStaff,
           rules,
           shiftTypeById,
-          ngTimeBandsByStaffId,
           blockedShiftTypeIdsByStaffId,
+          blockedShiftWeekdayIdsByStaffId,
           requestByKey,
           true,
           false);
@@ -800,8 +811,8 @@ public class ShiftAssignmentService {
           workedDaysByStaff,
           rules,
           shiftTypeById,
-          ngTimeBandsByStaffId,
           blockedShiftTypeIdsByStaffId,
+          blockedShiftWeekdayIdsByStaffId,
           requestByKey,
           true,
           true);
@@ -815,7 +826,12 @@ public class ShiftAssignmentService {
         .map(staff -> new StaffSelectionScore(
             staff,
             isRequestMatch(requestByKey, staff.getId(), workDate, targetShiftType.getId(), rules.desiredShiftMode),
-            isPreferredShiftBandMatch(staff, targetShiftType.getId()),
+          isPreferredShiftBandMatch(
+            staff.getId(),
+            workDate,
+            targetShiftType.getId(),
+            preferredShiftTypeIdsByStaffId,
+            preferredShiftWeekdayIdsByStaffId),
             monthlyWorkCount.getOrDefault(staff.getId(), 0),
             recentWorkCount(workedDaysByStaff.getOrDefault(staff.getId(), Set.of()), workDate, 7),
             currentConsecutiveDays(workedDaysByStaff.getOrDefault(staff.getId(), Set.of()), workDate),
@@ -834,18 +850,19 @@ public class ShiftAssignmentService {
       Map<Long, Set<LocalDate>> workedDaysByStaff,
       AutoShiftGenerationRules rules,
       Map<Long, ShiftType> shiftTypeById,
-      Map<Long, List<TimeBand>> ngTimeBandsByStaffId,
       Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId,
+        Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId,
       Map<String, ShiftRequest> requestByKey,
       boolean ignoreMinimumRestDays,
       boolean ignoreShiftGap) {
     return editableStaffs.stream()
-        .filter(staff -> !isBlockedByNgShiftTimeBand(
+        .filter(staff -> !isBlockedByNgShiftType(
             staff.getId(),
+          workDate,
             targetShiftType.getId(),
             shiftTypeById,
-            ngTimeBandsByStaffId,
-            blockedShiftTypeIdsByStaffId))
+          blockedShiftTypeIdsByStaffId,
+          blockedShiftWeekdayIdsByStaffId))
         .filter(staff -> canAssignShift(
             staff.getId(),
             workDate,
@@ -855,8 +872,8 @@ public class ShiftAssignmentService {
             workedDaysByStaff,
             rules,
             shiftTypeById,
-            ngTimeBandsByStaffId,
             blockedShiftTypeIdsByStaffId,
+            blockedShiftWeekdayIdsByStaffId,
             requestByKey,
             false,
             ignoreMinimumRestDays,
@@ -873,8 +890,8 @@ public class ShiftAssignmentService {
       Map<Long, Set<LocalDate>> workedDaysByStaff,
       AutoShiftGenerationRules rules,
       Map<Long, ShiftType> shiftTypeById,
-      Map<Long, List<TimeBand>> ngTimeBandsByStaffId,
       Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId,
+      Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId,
       Map<String, ShiftRequest> requestByKey,
       boolean ignoreMinimumRestDays,
       boolean ignoreShiftGap) {
@@ -887,8 +904,8 @@ public class ShiftAssignmentService {
         workedDaysByStaff,
         rules,
         shiftTypeById,
-        ngTimeBandsByStaffId,
         blockedShiftTypeIdsByStaffId,
+        blockedShiftWeekdayIdsByStaffId,
         requestByKey,
         ignoreMinimumRestDays,
         ignoreShiftGap).size();
@@ -1033,8 +1050,8 @@ public class ShiftAssignmentService {
       Map<Long, Set<LocalDate>> workedDaysByStaff,
       AutoShiftGenerationRules rules,
       Map<Long, ShiftType> shiftTypeById,
-      Map<Long, List<TimeBand>> ngTimeBandsByStaffId,
       Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId,
+      Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId,
       Map<String, ShiftRequest> requestByKey,
       boolean forceRequested,
       boolean ignoreMinimumRestDays) {
@@ -1047,8 +1064,8 @@ public class ShiftAssignmentService {
         workedDaysByStaff,
         rules,
         shiftTypeById,
-        ngTimeBandsByStaffId,
         blockedShiftTypeIdsByStaffId,
+        blockedShiftWeekdayIdsByStaffId,
         requestByKey,
         forceRequested,
         ignoreMinimumRestDays,
@@ -1064,13 +1081,19 @@ public class ShiftAssignmentService {
       Map<Long, Set<LocalDate>> workedDaysByStaff,
       AutoShiftGenerationRules rules,
       Map<Long, ShiftType> shiftTypeById,
-      Map<Long, List<TimeBand>> ngTimeBandsByStaffId,
       Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId,
+      Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId,
       Map<String, ShiftRequest> requestByKey,
       boolean forceRequested,
       boolean ignoreMinimumRestDays,
       boolean ignoreShiftGap) {
-    if (isBlockedByNgShiftTimeBand(staffId, shiftTypeId, shiftTypeById, ngTimeBandsByStaffId, blockedShiftTypeIdsByStaffId)) {
+    if (isBlockedByNgShiftType(
+        staffId,
+        workDate,
+        shiftTypeId,
+        shiftTypeById,
+        blockedShiftTypeIdsByStaffId,
+        blockedShiftWeekdayIdsByStaffId)) {
       return false;
     }
 
@@ -1202,31 +1225,20 @@ public class ShiftAssignmentService {
     return false;
   }
 
-  private boolean isBlockedByNgShiftTimeBand(
+  private boolean isBlockedByNgShiftType(
       Long staffId,
+      LocalDate workDate,
       Long shiftTypeId,
-      Map<Long, ShiftType> shiftTypeById,
-      Map<Long, List<TimeBand>> ngTimeBandsByStaffId,
-      Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId
+      @SuppressWarnings("unused") Map<Long, ShiftType> shiftTypeById,
+      Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId,
+      Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId
   ) {
     Set<Long> blockedShiftTypeIds = blockedShiftTypeIdsByStaffId.getOrDefault(staffId, Set.of());
-    if (blockedShiftTypeIds.contains(shiftTypeId)) {
-      return true;
-    }
-
-    List<TimeBand> ngBands = ngTimeBandsByStaffId.getOrDefault(staffId, List.of());
-    ShiftType shiftType = shiftTypeById.get(shiftTypeId);
-    if (shiftType == null) return false;
-
-    LocalTime start = shiftType.getStartTime();
-    LocalTime end = shiftType.getEndTime();
-
-    for (TimeBand band : ngBands) {
-      if (band.overlaps(start, end)) {
-        return true;
-      }
-    }
-    return false;
+    Set<Integer> blockedWeekdayIds = blockedShiftWeekdayIdsByStaffId.getOrDefault(staffId, Set.of());
+    // NG判定は OR: シフト種類か曜日のどちらかが一致した時点で割当不可。
+    boolean isShiftTypeBlocked = blockedShiftTypeIds.contains(shiftTypeId);
+    boolean isWeekdayBlocked = workDate != null && blockedWeekdayIds.contains(resolveWeekdayIndex(workDate));
+    return isShiftTypeBlocked || isWeekdayBlocked;
   }
 
   private int recentWorkCount(Set<LocalDate> workedDays, LocalDate targetDate, int days) {
@@ -1269,13 +1281,141 @@ public class ShiftAssignmentService {
     return req.getDesiredShiftType().getId().equals(shiftTypeId);
   }
 
-  private boolean isPreferredShiftBandMatch(Staff staff, Long shiftTypeId) {
-    if (staff == null || shiftTypeId == null) {
+  private boolean isPreferredShiftBandMatch(
+      Long staffId,
+      LocalDate workDate,
+      Long shiftTypeId,
+      Map<Long, Set<Long>> preferredShiftTypeIdsByStaffId,
+      Map<Long, Set<Integer>> preferredShiftWeekdayIdsByStaffId) {
+    if (staffId == null || workDate == null || shiftTypeId == null) {
       return false;
     }
-    return staff.getPreferredShiftTimeBands() != null
-        && !staff.getPreferredShiftTimeBands().isBlank()
-        && parseBlockedShiftTypeIds(staff.getPreferredShiftTimeBands()).contains(shiftTypeId);
+
+    Set<Long> preferredShiftTypeIds = preferredShiftTypeIdsByStaffId.getOrDefault(staffId, Set.of());
+    if (!preferredShiftTypeIds.contains(shiftTypeId)) {
+      return false;
+    }
+
+    Set<Integer> preferredWeekdayIds = preferredShiftWeekdayIdsByStaffId.getOrDefault(staffId, Set.of());
+    return appliesOnWeekday(workDate, preferredWeekdayIds);
+  }
+
+  private boolean appliesOnWeekday(LocalDate workDate, Set<Integer> weekdayIds) {
+    if (workDate == null || weekdayIds == null || weekdayIds.isEmpty()) {
+      return true;
+    }
+
+    return weekdayIds.contains(resolveWeekdayIndex(workDate));
+  }
+
+  private int resolveWeekdayIndex(LocalDate workDate) {
+    return workDate.getDayOfWeek().getValue() % 7;
+  }
+
+  private Set<Integer> parseShiftPreferenceWeekdayIds(String input) {
+    Set<Integer> weekdayIds = new HashSet<>();
+    if (input == null || input.isBlank()) {
+      return weekdayIds;
+    }
+
+    String trimmed = input.trim();
+    if (!(trimmed.startsWith("[") || trimmed.startsWith("{"))) {
+      return weekdayIds;
+    }
+
+    try {
+      ObjectMapper mapper = objectMapper != null ? objectMapper : new ObjectMapper();
+      JsonNode root = mapper.readTree(trimmed);
+      if (root.isArray()) {
+        for (JsonNode node : root) {
+          if (node.isNumber()) {
+            int weekdayId = node.intValue();
+            if (weekdayId >= 0 && weekdayId <= 6) {
+              weekdayIds.add(weekdayId);
+            }
+            continue;
+          }
+
+          if (node.isTextual()) {
+            try {
+              int weekdayId = Integer.parseInt(node.asText().trim());
+              if (weekdayId >= 0 && weekdayId <= 6) {
+                weekdayIds.add(weekdayId);
+              }
+            } catch (NumberFormatException ignored) {
+              // ignore invalid value
+            }
+            continue;
+          }
+
+          if (node.isObject()) {
+            JsonNode nodeWeekday = node.path("weekdayId");
+            if (!nodeWeekday.isMissingNode() && nodeWeekday.isNumber()) {
+              int weekdayId = nodeWeekday.intValue();
+              if (weekdayId >= 0 && weekdayId <= 6) {
+                weekdayIds.add(weekdayId);
+              }
+            }
+          }
+        }
+      }
+
+      if (root.isObject()) {
+        JsonNode weekdayIdsNode = root.path("weekdayIds");
+        if (!weekdayIdsNode.isArray()) {
+          weekdayIdsNode = root.path("ngShiftWeekdayIds");
+        }
+        if (!weekdayIdsNode.isArray()) {
+          weekdayIdsNode = root.path("weekdays");
+        }
+        if (!weekdayIdsNode.isArray()) {
+          weekdayIdsNode = root.path("weekDayIds");
+        }
+        if (weekdayIdsNode.isArray()) {
+          for (JsonNode node : weekdayIdsNode) {
+            if (node.isNumber()) {
+              int weekdayId = node.intValue();
+              if (weekdayId >= 0 && weekdayId <= 6) {
+                weekdayIds.add(weekdayId);
+              }
+            } else if (node.isTextual()) {
+              try {
+                int weekdayId = Integer.parseInt(node.asText().trim());
+                if (weekdayId >= 0 && weekdayId <= 6) {
+                  weekdayIds.add(weekdayId);
+                }
+              } catch (NumberFormatException ignored) {
+                // ignore invalid value
+              }
+            }
+          }
+        }
+
+        JsonNode singleWeekdayNode = root.path("weekdayId");
+        if (singleWeekdayNode.isMissingNode()) {
+          singleWeekdayNode = root.path("weekDayId");
+        }
+        if (singleWeekdayNode.isNumber()) {
+          int weekdayId = singleWeekdayNode.intValue();
+          if (weekdayId >= 0 && weekdayId <= 6) {
+            weekdayIds.add(weekdayId);
+          }
+        } else if (singleWeekdayNode.isTextual()) {
+          try {
+            int weekdayId = Integer.parseInt(singleWeekdayNode.asText().trim());
+            if (weekdayId >= 0 && weekdayId <= 6) {
+              weekdayIds.add(weekdayId);
+            }
+          } catch (NumberFormatException ignored) {
+            // ignore invalid value
+          }
+        }
+      }
+    } catch (Exception ignored) {
+      // 壊れていても無視
+    }
+
+    return weekdayIds;
   }
 
   private void createAssignmentInMemory(
@@ -1371,20 +1511,6 @@ public class ShiftAssignmentService {
     public int minimumShiftGapHours;
   }
 
-  public static class TimeBand {
-    private final LocalTime start;
-    private final LocalTime end;
-
-    public TimeBand(LocalTime start, LocalTime end) {
-      this.start = start;
-      this.end = end;
-    }
-
-    public boolean overlaps(LocalTime s, LocalTime e) {
-      return !(e.isBefore(start) || s.isAfter(end));
-    }
-  }
-
   public static class GenerationAttemptResult {
     public List<ShiftAssignment> generatedAssignments;
     public int unassignedRequiredCount;
@@ -1415,7 +1541,8 @@ public class ShiftAssignmentService {
       return rules;
     }
     try {
-      JsonNode root = objectMapper.readTree(json);
+      ObjectMapper mapper = objectMapper != null ? objectMapper : new ObjectMapper();
+      JsonNode root = mapper.readTree(json);
       rules.desiredShiftMode = root.path("desiredShiftMode").asText(null);
       rules.existingShiftHandling = root.path("existingShiftHandling").asText(null);
       rules.monthlyMaxWorkdaysMode = root.path("monthlyMaxWorkdaysMode").asText("FIXED");
@@ -1440,65 +1567,6 @@ public class ShiftAssignmentService {
     return rules;
   }
 
-  private List<TimeBand> parseNgTimeBands(String input) {
-    List<TimeBand> bands = new ArrayList<>();
-    if (input == null || input.isBlank()) {
-      return bands;
-    }
-
-    String trimmed = input.trim();
-    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
-      try {
-        JsonNode root = objectMapper.readTree(trimmed);
-        if (root.isArray()) {
-          for (JsonNode node : root) {
-            if (node.isObject() && node.has("shiftTypeId")) {
-              continue;
-            }
-            LocalTime start = LocalTime.parse(node.path("start").asText());
-            LocalTime end = LocalTime.parse(node.path("end").asText());
-            bands.add(new TimeBand(start, end));
-          }
-        }
-      } catch (Exception e) {
-        // 壊れていても無視
-      }
-      return bands;
-    }
-
-    String[] entries = trimmed.split("[\\r\\n,;]+");
-    for (String entry : entries) {
-      String token = entry.trim();
-      if (token.isBlank()) {
-        continue;
-      }
-
-      int separator = token.indexOf('-');
-      if (separator < 0) {
-        separator = token.indexOf('−');
-      }
-      if (separator < 0) {
-        continue;
-      }
-
-      String startText = token.substring(0, separator).trim();
-      String endText = token.substring(separator + 1).trim();
-      if (startText.isBlank() || endText.isBlank()) {
-        continue;
-      }
-
-      try {
-        LocalTime start = LocalTime.parse(startText);
-        LocalTime end = LocalTime.parse(endText);
-        bands.add(new TimeBand(start, end));
-      } catch (Exception ignored) {
-        // 壊れていても無視
-      }
-    }
-
-    return bands;
-  }
-
   private Set<Long> parseBlockedShiftTypeIds(String input) {
     Set<Long> blockedIds = new HashSet<>();
     if (input == null || input.isBlank()) {
@@ -1508,15 +1576,31 @@ public class ShiftAssignmentService {
     String trimmed = input.trim();
     if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
       try {
-        JsonNode root = objectMapper.readTree(trimmed);
+        ObjectMapper mapper = objectMapper != null ? objectMapper : new ObjectMapper();
+        JsonNode root = mapper.readTree(trimmed);
         if (root.isArray()) {
           for (JsonNode node : root) {
             if (node.isNumber()) {
               blockedIds.add(node.longValue());
+            } else if (node.isTextual()) {
+              try {
+                blockedIds.add(Long.parseLong(node.asText().trim()));
+              } catch (NumberFormatException ignored) {
+                // ignore invalid value
+              }
             } else if (node.isObject()) {
               JsonNode idNode = node.path("shiftTypeId");
+              if (idNode.isMissingNode()) {
+                idNode = node.path("id");
+              }
               if (idNode.isNumber()) {
                 blockedIds.add(idNode.longValue());
+              } else if (idNode.isTextual()) {
+                try {
+                  blockedIds.add(Long.parseLong(idNode.asText().trim()));
+                } catch (NumberFormatException ignored) {
+                  // ignore invalid value
+                }
               }
             }
           }
@@ -1524,11 +1608,48 @@ public class ShiftAssignmentService {
         }
         if (root.isObject()) {
           JsonNode idsNode = root.path("shiftTypeIds");
+          if (!idsNode.isArray()) {
+            idsNode = root.path("ngShiftTypeIds");
+          }
+          if (!idsNode.isArray()) {
+            idsNode = root.path("blockedShiftTypeIds");
+          }
           if (idsNode.isArray()) {
             for (JsonNode node : idsNode) {
               if (node.isNumber()) {
                 blockedIds.add(node.longValue());
+              } else if (node.isTextual()) {
+                try {
+                  blockedIds.add(Long.parseLong(node.asText().trim()));
+                } catch (NumberFormatException ignored) {
+                  // ignore invalid value
+                }
+              } else if (node.isObject()) {
+                JsonNode nodeId = node.path("shiftTypeId");
+                if (nodeId.isMissingNode()) {
+                  nodeId = node.path("id");
+                }
+                if (nodeId.isNumber()) {
+                  blockedIds.add(nodeId.longValue());
+                } else if (nodeId.isTextual()) {
+                  try {
+                    blockedIds.add(Long.parseLong(nodeId.asText().trim()));
+                  } catch (NumberFormatException ignored) {
+                    // ignore invalid value
+                  }
+                }
               }
+            }
+          }
+
+          JsonNode singleIdNode = root.path("shiftTypeId");
+          if (singleIdNode.isNumber()) {
+            blockedIds.add(singleIdNode.longValue());
+          } else if (singleIdNode.isTextual()) {
+            try {
+              blockedIds.add(Long.parseLong(singleIdNode.asText().trim()));
+            } catch (NumberFormatException ignored) {
+              // ignore invalid value
             }
           }
           return blockedIds;

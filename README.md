@@ -52,6 +52,12 @@ date,name,notes
 2026年8月13日,夏季休業,closed
 ```
 
+### シフト自動生成ルール仕様
+
+シフト自動生成の設定項目・判定順序・制約緩和の仕様は以下を参照してください。
+
+- [docs/auto_shift_generation_rules.md](docs/auto_shift_generation_rules.md)
+
 ## WSL実行ルール（必須）
 
 このプロジェクトの開発・ビルド・テスト・起動は、すべて WSL ターミナル内で実行してください。

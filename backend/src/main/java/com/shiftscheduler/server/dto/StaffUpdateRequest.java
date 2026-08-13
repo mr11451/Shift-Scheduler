@@ -6,8 +6,8 @@ public class StaffUpdateRequest {
     private String staffName;
     private String email;
     private String phone;
-    private String ngShiftTimeBands;
-    private String preferredShiftTimeBands;
+    private String ngShiftTypeIds;
+    private String preferredShiftTypeIds;
     private String responsibility;
     private RoleLevel roleLevel;
     private Long groupId;
@@ -41,21 +41,22 @@ public class StaffUpdateRequest {
         this.phone = phone;
     }
 
-    public String getNgShiftTimeBands() {
-        return ngShiftTimeBands;
+    public String getNgShiftTypeIds() {
+        return ngShiftTypeIds;
     }
 
-    public void setNgShiftTimeBands(String ngShiftTimeBands) {
-        this.ngShiftTimeBands = ngShiftTimeBands;
+    public void setNgShiftTypeIds(String ngShiftTypeIds) {
+        this.ngShiftTypeIds = ngShiftTypeIds;
     }
 
-    public String getPreferredShiftTimeBands() {
-        return preferredShiftTimeBands;
+    public String getPreferredShiftTypeIds() {
+        return preferredShiftTypeIds;
     }
 
-    public void setPreferredShiftTimeBands(String preferredShiftTimeBands) {
-        this.preferredShiftTimeBands = preferredShiftTimeBands;
+    public void setPreferredShiftTypeIds(String preferredShiftTypeIds) {
+        this.preferredShiftTypeIds = preferredShiftTypeIds;
     }
+
 
     public String getResponsibility() {
         return responsibility;

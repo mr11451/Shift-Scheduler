@@ -1,15 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import StaffForm from "./components/StaffForm";
+import { DEFAULT_ROLE_LABELS, parseRoleLabels } from "./utils/roleLabels";
 
 function StaffListView({ onEdit }) {
   const [staffs, setStaffs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
+  const [sortKey, setSortKey] = useState("staffCode");
+  const [sortDirection, setSortDirection] = useState("asc");
+  const [roleLabelMap, setRoleLabelMap] = useState({ ...DEFAULT_ROLE_LABELS });
 
   useEffect(() => {
     loadStaffs();
+    loadRoleLabels();
   }, []);
 
   async function loadStaffs() {
@@ -23,6 +28,21 @@ function StaffListView({ onEdit }) {
       setMessageType("error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadRoleLabels() {
+    try {
+      const res = await fetch("/api/system-settings/roleLabels");
+      if (!res.ok) {
+        setRoleLabelMap({ ...DEFAULT_ROLE_LABELS });
+        return;
+      }
+
+      const setting = await res.json();
+      setRoleLabelMap(parseRoleLabels(setting?.settingValueText || ""));
+    } catch {
+      setRoleLabelMap({ ...DEFAULT_ROLE_LABELS });
     }
   }
 
@@ -40,6 +60,35 @@ function StaffListView({ onEdit }) {
     }
   }
 
+  function toggleSort(nextKey) {
+    if (sortKey === nextKey) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortDirection("asc");
+  }
+
+  const sortedStaffs = useMemo(() => {
+    const direction = sortDirection === "asc" ? 1 : -1;
+    return [...staffs].sort((a, b) => {
+      const left = String(a?.[sortKey] ?? "");
+      const right = String(b?.[sortKey] ?? "");
+      const compared = left.localeCompare(right, "ja");
+      if (compared !== 0) {
+        return compared * direction;
+      }
+      return String(a?.staffCode ?? "").localeCompare(String(b?.staffCode ?? ""), "ja") * direction;
+    });
+  }, [staffs, sortDirection, sortKey]);
+
+  function sortIndicator(key) {
+    if (sortKey !== key) {
+      return "";
+    }
+    return sortDirection === "asc" ? " ▲" : " ▼";
+  }
+
   if (loading) return <div className="card">読み込み中...</div>;
 
   return (
@@ -49,24 +98,62 @@ function StaffListView({ onEdit }) {
       <table style={{ width: "100%" }}>
         <thead>
           <tr>
-            <th style={{ textAlign: "left", padding: "0.5rem" }}>スタッフコード</th>
-            <th style={{ textAlign: "left", padding: "0.5rem" }}>氏名</th>
+            <th style={{ textAlign: "left", padding: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => toggleSort("staffCode")}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  padding: 0,
+                  font: "inherit",
+                  color: "inherit",
+                  fontWeight: 600,
+                }}
+              >
+                スタッフコード{sortIndicator("staffCode")}
+              </button>
+            </th>
+            <th style={{ textAlign: "left", padding: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => toggleSort("staffName")}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  padding: 0,
+                  font: "inherit",
+                  color: "inherit",
+                  fontWeight: 600,
+                }}
+              >
+                氏名{sortIndicator("staffName")}
+              </button>
+            </th>
+            <th style={{ textAlign: "left", padding: "0.5rem" }}>担当</th>
+            <th style={{ textAlign: "left", padding: "0.5rem" }}>グループ</th>
+            <th style={{ textAlign: "left", padding: "0.5rem" }}>権限</th>
             <th style={{ textAlign: "left", padding: "0.5rem" }}>メール</th>
             <th style={{ textAlign: "center", padding: "0.5rem" }}>操作</th>
           </tr>
         </thead>
         <tbody>
-          {staffs.length === 0 ? (
+          {sortedStaffs.length === 0 ? (
             <tr>
-              <td colSpan={4} style={{ textAlign: "center", padding: "1rem", color: "#999" }}>
+              <td colSpan={7} style={{ textAlign: "center", padding: "1rem", color: "#999" }}>
                 スタッフはまだ登録されていません。
               </td>
             </tr>
           ) : (
-            staffs.map((staff) => (
+            sortedStaffs.map((staff) => (
               <tr key={staff.id} style={{ borderBottom: "1px solid var(--line)" }}>
                 <td style={{ padding: "0.5rem" }}>{staff.staffCode}</td>
                 <td style={{ padding: "0.5rem" }}>{staff.staffName}</td>
+                <td style={{ padding: "0.5rem" }}>{staff.responsibility || "-"}</td>
+                <td style={{ padding: "0.5rem" }}>{staff.groupName || "-"}</td>
+                <td style={{ padding: "0.5rem" }}>{roleLabelMap[staff.roleLevel] || staff.roleLevel || "-"}</td>
                 <td style={{ padding: "0.5rem" }}>{staff.email || "-"}</td>
                 <td style={{ textAlign: "center", padding: "0.5rem" }}>
                   <button

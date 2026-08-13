@@ -57,11 +57,11 @@ public class Staff {
     @Column(length = 255)
     private String passwordHash;
 
-    @Column(length = 1000)
-    private String ngShiftTimeBands;
+    @Column(name = "ng_shift_time_bands", length = 1000)
+    private String ngShiftTypeIds;
 
-    @Column(length = 1000)
-    private String preferredShiftTimeBands;
+    @Column(name = "preferred_shift_time_bands", length = 1000)
+    private String preferredShiftTypeIds;
 
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -161,20 +161,20 @@ public class Staff {
         this.passwordHash = passwordHash;
     }
 
-    public String getNgShiftTimeBands() {
-        return ngShiftTimeBands;
+    public String getNgShiftTypeIds() {
+        return ngShiftTypeIds;
     }
 
-    public void setNgShiftTimeBands(String ngShiftTimeBands) {
-        this.ngShiftTimeBands = ngShiftTimeBands;
+    public void setNgShiftTypeIds(String ngShiftTypeIds) {
+        this.ngShiftTypeIds = ngShiftTypeIds;
     }
 
-    public String getPreferredShiftTimeBands() {
-        return preferredShiftTimeBands;
+    public String getPreferredShiftTypeIds() {
+        return preferredShiftTypeIds;
     }
 
-    public void setPreferredShiftTimeBands(String preferredShiftTimeBands) {
-        this.preferredShiftTimeBands = preferredShiftTimeBands;
+    public void setPreferredShiftTypeIds(String preferredShiftTypeIds) {
+        this.preferredShiftTypeIds = preferredShiftTypeIds;
     }
 
     public OffsetDateTime getCreatedAt() {

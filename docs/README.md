@@ -30,6 +30,7 @@
 - `domain_model.md` : ドメインモデル（業務ルール、集約、権限制約）
 - `api_db_model.md` : API/DBモデル設計（テーブル、制約、RESTモデル）
 - `api_reference.md` : APIリファレンス（エンドポイント仕様）
+- `auto_shift_generation_rules.md` : シフト自動生成ルール仕様（`autoShiftGenerationRules` の項目、判定順序、緩和ルール）
 
 ## 推奨参照順
 

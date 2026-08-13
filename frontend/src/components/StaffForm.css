@@ -111,6 +111,52 @@
   font-weight: normal;
 }
 
+.shift-option-label {
+  display: grid;
+  grid-template-columns: min-content 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.shift-option-checkbox {
+  flex: 0 0 auto;
+  width: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  height: 16px;
+  margin: 0;
+  align-self: center;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.shift-option-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.shift-weekday-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+  overflow-x: auto;
+}
+
+.shift-weekday-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background-color: #fff;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 .form-actions {
   display: flex;
   gap: 12px;

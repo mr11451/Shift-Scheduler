@@ -48,8 +48,8 @@ public class StaffService {
         staff.setStaffName(request.getStaffName());
         staff.setEmail(request.getEmail());
         staff.setPhone(request.getPhone());
-        staff.setNgShiftTimeBands(request.getNgShiftTimeBands());
-        staff.setPreferredShiftTimeBands(request.getPreferredShiftTimeBands());
+        staff.setNgShiftTypeIds(request.getNgShiftTypeIds());
+        staff.setPreferredShiftTypeIds(request.getPreferredShiftTypeIds());
         staff.setResponsibility(request.getResponsibility() == null || request.getResponsibility().isBlank()
                 ? "未設定" : request.getResponsibility());
         staff.setRoleLevel(request.getRoleLevel());
@@ -80,8 +80,8 @@ public class StaffService {
         staff.setStaffName(request.getStaffName());
         staff.setEmail(request.getEmail());
         staff.setPhone(request.getPhone());
-        staff.setNgShiftTimeBands(request.getNgShiftTimeBands());
-        staff.setPreferredShiftTimeBands(request.getPreferredShiftTimeBands());
+        staff.setNgShiftTypeIds(request.getNgShiftTypeIds());
+        staff.setPreferredShiftTypeIds(request.getPreferredShiftTypeIds());
         staff.setResponsibility(request.getResponsibility() == null || request.getResponsibility().isBlank()
                 ? "未設定" : request.getResponsibility());
         staff.setIsActive(request.getIsActive());
@@ -214,8 +214,8 @@ public class StaffService {
         response.setStaffName(staff.getStaffName());
         response.setEmail(staff.getEmail());
         response.setPhone(staff.getPhone());
-        response.setNgShiftTimeBands(staff.getNgShiftTimeBands());
-        response.setPreferredShiftTimeBands(staff.getPreferredShiftTimeBands());
+        response.setNgShiftTypeIds(staff.getNgShiftTypeIds());
+        response.setPreferredShiftTypeIds(staff.getPreferredShiftTypeIds());
         response.setResponsibility(staff.getResponsibility());
         response.setRoleLevel(staff.getRoleLevel());
         if (staff.getGroup() != null) {

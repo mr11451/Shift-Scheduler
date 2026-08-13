@@ -42,9 +42,9 @@ INSERT INTO shift_types (
     shift_code, shift_name, start_time, end_time, is_off_type, is_active, sort_order, created_at, updated_at
 )
 VALUES
-    ('SFT-001', '早番', '17:00', '01:00', FALSE, TRUE, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('SFT-002', '遅番', '01:00', '09:00', FALSE, TRUE, 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('SFT-003', '夜勤', '09:00', '17:00', FALSE, TRUE, 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ('SFT-001', '早番', '16:00', '00:00', FALSE, TRUE, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('SFT-002', '遅番', '00:00', '08:00', FALSE, TRUE, 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('SFT-003', '夜勤', '08:00', '16:00', FALSE, TRUE, 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (shift_code) DO NOTHING;
 
 INSERT INTO qualifications (qualification_name, is_active, created_at, updated_at)
