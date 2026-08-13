@@ -30,7 +30,8 @@ A comprehensive Spring Boot and React-based staff shift scheduling and managemen
 - **Calendar Permissions**: Control inter-staff calendar viewing permissions
 - **Shift Types**: Define flexible shift templates (morning, evening, night, off)
 - **Qualifications**: Track staff certifications and qualifications
-- **Member Provisioning**: Manage new member login access with provisioning workflow
+- **Member Provisioning**: Issue initial login information for new members and deliver it by SMTP when configured
+- **Password Reset**: Issue one-time password reset URLs and verification codes with a one-hour validity period
 - **System Settings**: Configure system-wide preferences via admin dashboard
 - **Audit Logging**: Track all modifications with editor/updater information
 
@@ -206,6 +207,7 @@ cd backend
 - `spring-boot-starter-web`: REST API support
 - `spring-boot-starter-data-jpa`: ORM and database access
 - `spring-boot-starter-validation`: Input validation
+- `spring-boot-starter-mail`: SMTP delivery for initial login and password reset messages
 - `postgresql`: PostgreSQL driver
 - `flyway-core`: Database versioning and migrations
 - `junit-jupiter`: Testing framework
@@ -290,6 +292,14 @@ CLIENT_DIST_DIR=../frontend/dist/
 
 # Profiles
 SPRING_PROFILES_ACTIVE=dev
+
+# Optional SMTP delivery
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=your-smtp-user
+SMTP_PASSWORD=your-smtp-password
+SMTP_FROM=no-reply@example.com
+PASSWORD_RESET_BASE_URL=https://scheduler.example.com/password-reset
 ```
 
 ## 📚 API Documentation
@@ -349,7 +359,7 @@ See [API Documentation](docs/api_reference.md) for detailed endpoint specificati
 
 ## 🗄️ Database Schema
 
-### Core Tables (11 tables)
+### Core Tables
 
 1. **staffs**: Staff/user profiles
    - Auto-generated staff_code (STF-00001 format)
@@ -392,20 +402,23 @@ See [API Documentation](docs/api_reference.md) for detailed endpoint specificati
    - Key-value pairs
    - Boolean and text values
 
+10. **password_reset_tokens**: One-time password reset credentials
+   - Hashes for the URL token and verification code
+   - One-hour expiry and single-use tracking
+
 ### Database Migrations
 
 Located in `backend/src/main/resources/db/migration/`:
 
-- `V1__create_shifts_table.sql`: Initial shift type definitions
-- `V2__create_groups_table.sql`: Organizational grouping
-- `V3__create_staffs_table.sql`: Staff profiles with auto-generated codes
-- `V4__create_qualifications_table.sql`: Certifications
-- `V5__create_shift_types_table.sql`: Shift templates
-- `V6__create_shift_assignments_table.sql`: Confirmed assignments
-- `V7__create_shift_requests_table.sql`: Desired shift requests
-- `V8__create_calendar_view_permissions_table.sql`: Permission management
-- `V9__create_system_settings_table.sql`: System configuration
-- `V10__create_member_login_provisionings_table.sql`: Member onboarding
+- `V001__001_initialize_schema.sql`: Initial schema
+- `V002__002_seed_dev_data.sql`: Development/test data
+- `V003__003_seed_production_defaults.sql`: Production defaults
+- `V004__004_add_staff_ng_shift_time_bands.sql`: Staff NG shift bands
+- `V005__005_add_staff_preferred_shift_time_bands.sql`: Staff preferred shift bands
+- `V006__006_allow_null_desired_shift_type.sql`: Vacation request support
+- `V007__007_add_role_labels_system_setting.sql`: Role label setting
+- `V008__008_add_password_reset_tokens.sql`: Password reset tokens
+- `V009__009_add_password_changed_at.sql`: JWT invalidation after password changes
 
 ### Entity Relationships
 

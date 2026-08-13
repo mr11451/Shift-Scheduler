@@ -146,9 +146,9 @@
 - updated_at: TIMESTAMPTZ, NOT NULL
 
 レコード例:
-- `member_calendar_share_enabled` = true/false
-- `member_initial_login_mail_enabled` = true/false
-- `member_initial_login_access_base_url` = https://example.com/first-login
+- `calendarViewPermissionEnabled` = true/false
+- `memberLoginNotificationEnabled` = true/false
+- `memberLoginNotificationBaseUrl` = https://example.com
 
 ### 11. member_login_provisionings
 
@@ -167,8 +167,25 @@
 
 制約:
 - `status` は `ISSUED | SENT | FAILED | EXPIRED`
-- `login_code` は有効期限内で一意
-- メンバ以外の `staff_id` では作成不可
+
+### 12. password_reset_tokens
+
+- id: BIGSERIAL, PK
+- staff_id: BIGINT, FK -> staffs.id, NOT NULL
+- token_hash: VARCHAR(255), NOT NULL
+- verification_code_hash: VARCHAR(255), NOT NULL
+- expires_at: TIMESTAMP, NOT NULL
+- used_at: TIMESTAMP, NULL
+
+制約:
+- トークンと確認コードはハッシュのみを保存する
+- 有効期限は発行から1時間
+- `used_at` が設定済みのトークンは再利用不可
+
+### staffs.password_changed_at
+
+- password_changed_at: TIMESTAMP, NULL
+- パスワード変更時に設定し、この日時以前に発行されたJWTを無効化する
 
 ## 既存 `shifts` テーブルからの移行方針
 
@@ -193,9 +210,10 @@
 - `GET /api/staffs`
   - query: `staffCode`, `staffName`, `responsibility`, `groupId`, `roleLevel`, `activeOnly`
   - response: staff summary list
-- `POST /api/staffs`（マスタのみ）
-  - メンバ登録時に `member_initial_login_mail_enabled=true` の場合、
-    初回ログイン情報（アクセスURL/ログインコード/初期パスワード）を登録メールへ送信
+- `POST /api/staffs`
+  - MEMBER登録時に初回ログイン情報を発行する
+  - `memberLoginNotificationEnabled=true` かつSMTP送信可能な場合、登録メールへ送信する
+  - 送信不可時はレスポンスの `initialLoginInformation` に初回ログイン情報を含める
 - `PUT /api/staffs/{staffId}`（マスタのみ）
 - `GET /api/staffs/{staffId}/calendar?yearMonth=YYYY-MM`
   - メンバ: 自分のみ
@@ -249,24 +267,19 @@
 
 ### 9. システム設定（管理者）
 
-- `GET /api/system-settings/member-calendar-share-enabled`
-- `PUT /api/system-settings/member-calendar-share-enabled`
-  - マスタのみ更新可
-- `GET /api/system-settings/member-initial-login-mail-enabled`
-- `PUT /api/system-settings/member-initial-login-mail-enabled`
-  - マスタのみ更新可
-- `GET /api/system-settings/member-initial-login-access-base-url`
-- `PUT /api/system-settings/member-initial-login-access-base-url`
-  - マスタのみ更新可
+- `GET /api/system-settings`
+- `GET /api/system-settings/{settingKey}`
+- `PUT /api/system-settings/{settingKey}/boolean?value=true|false`
+- `PUT /api/system-settings/{settingKey}/text?value=...`
+  - 更新はマスタのみ
+  - 初回ログイン通知のキーは `memberLoginNotificationEnabled` と `memberLoginNotificationBaseUrl`
 
-### 10. 初回ログイン通知（オプション）
+### 10. パスワード変更
 
-- `POST /api/staffs/{staffId}/initial-login/send`
-  - 指定メンバへ初回ログイン情報を送信（マスタのみ）
-- `POST /api/staffs/{staffId}/initial-login/reissue`
-  - ログインコード/初期パスワードを再発行して送信（マスタのみ）
-- `GET /api/staffs/{staffId}/initial-login/status`
-  - 送信状態（ISSUED/SENT/FAILED/EXPIRED）を取得
+- `POST /api/password-reset-requests`
+  - ログイン中の本人に対してワンタイムURLと確認コードを発行する
+- `POST /api/password-resets/{staffId}/{token}`
+  - 確認コードと8文字以上の新パスワードで変更を完了する
 
 ## DTO例
 
@@ -318,19 +331,20 @@
 - requestedAt
 - respondedAt
 
-### InitialLoginSendRequest
+### InitialLoginInformation
 
-- expiresInHours
-- sendMail (true/false)
+- emailSent
+- message
+- accessUrl（メール送信不可時のみ）
+- loginCode（メール送信不可時のみ）
+- initialPassword（メール送信不可時のみ）
 
-### InitialLoginStatusDto
+### PasswordResetRequestResponse
 
-- staffId
-- status (`ISSUED | SENT | FAILED | EXPIRED`)
-- accessUrl
-- sentAt
-- expiresAt
-- lastErrorMessage
+- emailSent
+- message
+- accessUrl（メール送信不可時のみ）
+- verificationCode（メール送信不可時のみ）
 
 ### BulkShiftUpdateRequest
 
@@ -353,7 +367,7 @@
   - actor.role = CHIEF -> `target.role == MEMBER && actor.groupId == target.groupId`
   - actor.role = MEMBER ->
     - `actor.id == target.id` は常に true
-    - `member_calendar_share_enabled == true` かつ APPROVED がある場合は他メンバも true
+    - `calendarViewPermissionEnabled == true` かつ APPROVED がある場合は他メンバも true
 - `canEditShift(actor, target)`
   - actor.role = MASTER -> true
   - actor.role = CHIEF -> `target.role == MEMBER && actor.groupId == target.groupId`
@@ -363,12 +377,7 @@
   - actor.role = MEMBER
   - target.role = MEMBER
   - actor.groupId = target.groupId
-  - `member_calendar_share_enabled == true`
-
-- `canSendInitialLogin(actor, target)`
-  - actor.role = MASTER
-  - target.role = MEMBER
-  - `member_initial_login_mail_enabled == true` または明示的再送操作
+  - `calendarViewPermissionEnabled == true`
 
 ## Spring Boot 実装マッピング（推奨）
 
@@ -376,23 +385,15 @@
   - `Staff`, `Group`, `ShiftAssignment`, `ShiftRequest`, `ShiftType`, `Qualification`, `CalendarViewPermission`, `SystemSetting`
   - `RoleLevel` enum
 - package `application`
-  - `ShiftQueryService`, `ShiftCommandService`, `ShiftRequestService`, `AutoShiftGenerationService`, `CalendarViewPermissionService`, `MemberOnboardingService`, `StaffService`
+  - `ShiftAssignmentService`, `ShiftRequestService`, `AutoShiftGenerationService`, `CalendarViewPermissionService`, `SystemSettingService`, `AuthenticationService`, `StaffService`
 - package `api`
-  - `StaffController`, `ShiftController`, `ShiftRequestController`, `CalendarViewPermissionController`, `SystemSettingController`, `MemberOnboardingController`, `MasterController`
+  - `StaffApiController`, `ShiftAssignmentApiController`, `ShiftRequestApiController`, `CalendarViewPermissionApiController`, `SystemSettingApiController`, `AuthenticationApiController`
 - package `infrastructure`
   - `Jdbc*Repository` または `Jpa*Repository`
 
 ## Flywayマイグレーション案
 
-- `V2__create_groups_and_staffs.sql`
-- `V3__create_qualifications.sql`
-- `V4__create_shift_types.sql`
-- `V5__create_shift_assignments.sql`
-- `V6__create_shift_assignment_audits.sql`
-- `V7__create_shift_requests.sql`
-- `V8__create_calendar_view_permissions.sql`
-- `V9__create_system_settings.sql`
-- `V10__add_staff_email_and_member_login_provisionings.sql`
+- `V001__001_initialize_schema.sql` から `V009__009_add_password_changed_at.sql`
 
 ## 受け入れ条件
 
@@ -405,6 +406,6 @@
 - 希望と充足要件が競合した場合、未反映希望と理由が返る
 - メンバー間閲覧機能が無効時、申請APIは利用不可
 - メンバー間閲覧機能が有効時、APPROVED な相手のみ閲覧可能
-- メンバ登録時、設定有効なら初回ログイン情報メールが送信される
-- 初回ログイン通知の送信失敗時、FAILED 状態とエラー内容が記録される
-- メンバ以外に対して初回ログイン発行APIを実行できない
+- メンバ登録時、SMTP送信可能かつ通知設定が有効なら初回ログイン情報メールが送信される
+- SMTP送信不可時は初回ログイン情報が作成レスポンスに含まれる
+- パスワード変更後は変更前のJWTが利用できない

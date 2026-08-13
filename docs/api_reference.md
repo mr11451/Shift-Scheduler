@@ -27,7 +27,7 @@ Shift Scheduler REST API Reference - All Endpoints
 5. [Shift Assignment API](#shift-assignment-api)
 6. [Shift Request API](#shift-request-api)
 7. [Calendar View Permission API](#calendar-view-permission-api)
-8. [Member Login Provisioning API](#member-login-provisioning-api)
+8. [Authentication and Password Reset API](#authentication-and-password-reset-api)
 9. [System Setting API](#system-setting-api)
 10. [Error Handling](#error-handling)
 
@@ -127,20 +127,26 @@ Content-Type: application/json
 **Response** (201 CREATED)
 ```json
 {
-  "id": 2,
-  "staffCode": "STF-00002",
-  "staffName": "山田花子",
-  "email": "yamada@example.com",
-  "phone": "090-9876-5432",
-  "responsibility": "企画",
-  "roleLevel": "CHIEF",
-  "groupId": 2,
-  "groupName": "企画部",
-  "isActive": true,
-  "createdAt": "2026-07-26T11:00:00+09:00",
-  "updatedAt": "2026-07-26T11:00:00+09:00"
+  "staff": {
+    "id": 2,
+    "staffCode": "STF-00002",
+    "staffName": "山田花子",
+    "email": "yamada@example.com",
+    "phone": "090-9876-5432",
+    "responsibility": "企画",
+    "roleLevel": "MEMBER",
+    "groupId": 2,
+    "groupName": "企画部",
+    "isActive": true
+  },
+  "initialLoginInformation": {
+    "emailSent": true,
+    "message": "初回ログイン情報をメールで送信しました。"
+  }
 }
 ```
+
+MEMBERを新規登録すると初回ログイン情報を発行します。SMTP未設定、メールアドレス未登録、または送信失敗時は、`initialLoginInformation` に `accessUrl`、`loginCode`、`initialPassword` が含まれ、管理画面はこれをダイアログに表示します。メール送信成功時、これらの機密値はレスポンスに含まれません。
 
 **Error Responses**
 - `400 BAD REQUEST`: Validation error (invalid email, phone format, missing required fields)
@@ -951,7 +957,7 @@ GET /calendar-view-permissions/requester/{requesterStaffId}/status/{status}
 ```
 POST /calendar-view-permissions
 Content-Type: application/json
-X-Requester-Staff-Id: STF-00001
+Authorization: Bearer <JWT>
 
 {
   "targetStaffId": 2,
@@ -960,7 +966,7 @@ X-Requester-Staff-Id: STF-00001
 ```
 
 **Headers**
-- `X-Requester-Staff-Id` (required): Requester's staff code
+- `Authorization` (required): Requester is resolved from JWT
 
 **Response** (201 CREATED)
 ```json
@@ -977,11 +983,11 @@ X-Requester-Staff-Id: STF-00001
 **Request**
 ```
 POST /calendar-view-permissions/{id}/approve
-X-Approver-Staff-Id: STF-00002
+Authorization: Bearer <JWT>
 ```
 
 **Headers**
-- `X-Approver-Staff-Id` (required): Target staff code (approver)
+- `Authorization` (required): Approver is resolved from JWT
 
 **Response** (200 OK)
 ```json
@@ -998,7 +1004,7 @@ X-Approver-Staff-Id: STF-00002
 **Request**
 ```
 POST /calendar-view-permissions/{id}/reject
-X-Rejecter-Staff-Id: STF-00002
+Authorization: Bearer <JWT>
 ```
 
 **Response** (200 OK)
@@ -1015,7 +1021,7 @@ X-Rejecter-Staff-Id: STF-00002
 **Request**
 ```
 POST /calendar-view-permissions/{id}/cancel
-X-Requester-Staff-Id: STF-00001
+Authorization: Bearer <JWT>
 ```
 
 **Response** (200 OK)
@@ -1026,6 +1032,55 @@ X-Requester-Staff-Id: STF-00001
   ...
 }
 ```
+
+---
+
+## Authentication and Password Reset API
+
+### Login
+
+```
+POST /login
+Content-Type: application/json
+
+{
+  "staffCode": "STF-00001",
+  "password": "password"
+}
+```
+
+The response contains `token`, `staffId`, `staffCode`, `staffName`, and `roleLevel`.
+
+### Request Password Reset
+
+```
+POST /password-reset-requests
+Authorization: Bearer <JWT>
+```
+
+The logged-in staff member receives a one-time URL containing their staff ID and access token, plus a six-digit verification code. Both are valid for one hour. A new request invalidates previously unused reset tokens for that member.
+
+When SMTP delivery succeeds, the response is:
+
+```json
+{ "emailSent": true, "message": "パスワード変更用のURLと確認コードをメールで送信しました。" }
+```
+
+When SMTP is unavailable or delivery fails, the response contains `accessUrl` and `verificationCode` so the member screen can display them in a dialog.
+
+### Complete Password Reset
+
+```
+POST /password-resets/{staffId}/{token}
+Content-Type: application/json
+
+{
+  "verificationCode": "123456",
+  "newPassword": "new-password"
+}
+```
+
+`newPassword` must contain at least eight characters. A successful reset consumes the token and invalidates every JWT issued on or before the password change, requiring a new login.
 
 ---
 
@@ -1046,14 +1101,14 @@ GET /system-settings
 ```json
 [
   {
-    "settingKey": "member_calendar_share_enabled",
+    "settingKey": "calendarViewPermissionEnabled",
     "settingValueBoolean": true,
     "settingValueText": null,
     "updatedBy": "STF-00099",
     "updatedAt": "2026-07-26T10:00:00+09:00"
   },
   {
-    "settingKey": "member_initial_login_mail_enabled",
+    "settingKey": "memberLoginNotificationEnabled",
     "settingValueBoolean": true,
     "settingValueText": null,
     "updatedBy": "STF-00099",
@@ -1072,7 +1127,7 @@ GET /system-settings/{settingKey}
 **Response** (200 OK)
 ```json
 {
-  "settingKey": "member_calendar_share_enabled",
+  "settingKey": "calendarViewPermissionEnabled",
   "settingValueBoolean": true,
   "settingValueText": null,
   "updatedBy": "STF-00099",
@@ -1098,7 +1153,7 @@ Authorization: Bearer <JWT>
 **Response** (200 OK)
 ```json
 {
-  "settingKey": "member_calendar_share_enabled",
+  "settingKey": "calendarViewPermissionEnabled",
   "settingValueBoolean": false,
   "updatedBy": "STF-00099",
   "updatedAt": "2026-07-26T12:00:00+09:00"

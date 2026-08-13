@@ -158,8 +158,8 @@
   - updatedBy
   - updatedAt
 - 不変条件
-  - `member_calendar_share_enabled` は単一キーで管理
-  - `member_initial_login_mail_enabled` は単一キーで管理
+  - `calendarViewPermissionEnabled` は単一キーで管理
+  - `memberLoginNotificationEnabled` は単一キーで管理
 
 ### MemberLoginProvisioning 集約
 
@@ -169,15 +169,23 @@
   - staffId
   - accessUrl
   - loginCode
-  - initialPassword
+  - initialPasswordHash
   - status（ISSUED / SENT / FAILED / EXPIRED）
   - issuedAt
   - expiresAt
   - sentAt（任意）
 - 不変条件
   - staff.role = MEMBER の場合のみ発行可能
-  - loginCode は有効期限内で一意
   - 初期パスワードは平文保管しない（送信直後に破棄しハッシュのみ保持）
+
+### PasswordResetToken 集約
+
+- 集約ルート: PasswordResetToken
+- 主な属性: staffId、tokenHash、verificationCodeHash、expiresAt、usedAt
+- 不変条件
+  - URLトークンと確認コードはハッシュのみ保存する
+  - 発行から1時間で失効し、使用後は再利用できない
+  - 新しい発行時に、同一スタッフの未使用トークンを無効化する
 
 ## 値オブジェクト
 
@@ -230,17 +238,21 @@
   - approveOrReject(target, requestId, decision)
   - canMemberViewOtherCalendar(viewer, owner)
   - ルール
-    - システム設定 `member_calendar_share_enabled` が有効時のみ申請/許可を受け付ける
+    - システム設定 `calendarViewPermissionEnabled` が有効時のみ申請/許可を受け付ける
     - APPROVED 状態かつ失効前の場合のみ閲覧可
 
-- MemberOnboardingService
-  - registerMember(staffProfile)
-  - issueInitialLogin(staffId)
-  - sendInitialLoginMail(staffId)
+- StaffService
+  - createStaffWithInitialLogin(updaterStaffId, request)
   - ルール
-    - システム設定 `member_initial_login_mail_enabled` が有効時のみ自動送信する
+    - MEMBER登録時に初回ログイン情報を発行する
+    - システム設定 `memberLoginNotificationEnabled` が有効でSMTP送信可能な場合のみ自動送信する
     - 送信内容はアクセスURL、ログインコード、初期パスワードを含む
-    - メール送信失敗時は再送可能な FAILED 状態で保持する
+    - メール送信不可時は初回ログイン情報を画面表示用レスポンスに含める
+
+- AuthenticationService
+  - requestPasswordReset(staffId)
+  - resetPassword(staffId, token, verificationCode, newPassword)
+  - パスワード変更後、変更日時以前のJWTを無効化する
 
 ## リポジトリインターフェース
 
@@ -253,13 +265,16 @@
 - CalendarViewPermissionRepository
 - SystemSettingRepository
 - MemberLoginProvisioningRepository
+- PasswordResetTokenRepository
 
 ## 主要ユースケースと集約利用
 
 - スタッフ登録・編集（管理者）
-  - Staff, Group, Qualification, MemberOnboardingService
+  - Staff, Group, Qualification, StaffService
 - 初回ログイン情報送信（オプション）
-  - MemberLoginProvisioning, SystemSetting, MemberOnboardingService
+  - MemberLoginProvisioning, SystemSetting, StaffService
+- パスワード変更
+  - PasswordResetToken, AuthenticationService
 - シフト編集（月次表）
   - ShiftAssignment, Staff, ShiftType, AccessControlService
 - 自動シフト生成（月次）
@@ -283,8 +298,9 @@
 - マスタは管理画面を含む全機能にアクセス可能
 - メンバー同士の相互閲覧は、管理者設定で機能有効時のみ利用可能
 - 機能有効時でも、申請先の許可がある場合に限り相手カレンダーを閲覧可能
-- メンバー登録時の初回ログイン通知は、管理者設定で有効時のみ自動実行
-- 初回ログイン通知はメンバー本人メールアドレス宛にのみ送信
+- メンバー登録時に初回ログイン情報を発行し、通知設定有効かつSMTP送信可能な場合だけメール送信する
+- SMTP送信不可時は初回ログイン情報を登録画面へ返す
+- パスワード変更後は、変更日時以前のJWTを無効化する
 
 ## 概念図
 
@@ -357,6 +373,14 @@ classDiagram
     +status
   }
 
+  class PasswordResetToken {
+    +staffId
+    +tokenHash
+    +verificationCodeHash
+    +expiresAt
+    +usedAt
+  }
+
   class AccessControlService {
     +canViewShift(editor, targetStaff)
     +canEditShift(editor, targetStaff)
@@ -372,10 +396,13 @@ classDiagram
     +canMemberViewOtherCalendar(viewer, owner)
   }
 
-  class MemberOnboardingService {
-    +registerMember(staffProfile)
-    +issueInitialLogin(staffId)
-    +sendInitialLoginMail(staffId)
+  class StaffService {
+    +createStaffWithInitialLogin(updaterStaffId, request)
+  }
+
+  class AuthenticationService {
+    +requestPasswordReset(staffId)
+    +resetPassword(staffId, token, verificationCode, newPassword)
   }
 
   Group "1" --> "0..*" Staff : belongs
@@ -387,13 +414,15 @@ classDiagram
   Staff "1" --> "0..*" CalendarViewPermission : requester
   Staff "1" --> "0..*" CalendarViewPermission : target
   Staff "1" --> "0..*" MemberLoginProvisioning : onboarding
+  Staff "1" --> "0..*" PasswordResetToken : password reset
   AccessControlService ..> Staff : policy
   AccessControlService ..> Group : same-group check
   AutoShiftGenerationService ..> ShiftRequest : consider desired
   CalendarViewPermissionService ..> CalendarViewPermission : policy
   CalendarViewPermissionService ..> SystemSetting : feature toggle
-  MemberOnboardingService ..> MemberLoginProvisioning : issue/send
-  MemberOnboardingService ..> SystemSetting : option check
+  StaffService ..> MemberLoginProvisioning : issue/send
+  StaffService ..> SystemSetting : option check
+  AuthenticationService ..> PasswordResetToken : issue/reset
 ```
 
 ## 実装時の推奨ポイント

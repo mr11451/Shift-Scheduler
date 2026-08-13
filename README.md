@@ -11,6 +11,8 @@
 
 - **ユーザー認証** - スタッフコードとパスワードによるログイン
 - **ロールベースアクセス制御** - MEMBER / CHIEF / MASTER の3段階権限
+- **初回ログイン情報の発行** - メンバ登録時に初期パスワードを発行し、設定済みSMTPでメール送信
+- **パスワード変更** - 1時間有効・ワンタイムURLと確認コードによる変更
 - シフト登録・編集
 - シフト一覧表示
 - PostgreSQL への永続化
@@ -92,7 +94,7 @@ pwd
 開発・検証時の Docker 実行は、Windows の PowerShell / cmd ではなく、必ず WSL の Ubuntu ターミナルから行います。
 
 ```bash
-cd {/path/to}/Shift-Scheduler
+cd /path/to/Shift-Scheduler
 docker compose up -d
 docker compose ps
 docker compose logs -f
@@ -107,7 +109,7 @@ VS Code から WSL 上の Spring Boot アプリをデバッグする場合は、
 ### 1. WSL でバックエンドを起動する
 
 ```bash
-cd {/path/to}/Shift-Scheduler/backend
+cd /path/to/Shift-Scheduler/backend
 ./mvnw spring-boot:run \
   -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005" \
   -Dspring-boot.run.arguments="--spring.profiles.active=dev"
@@ -115,9 +117,8 @@ cd {/path/to}/Shift-Scheduler/backend
 
 ### 2. VS Code のデバッガから接続する
 
-- VS Code の「Run and Debug」を開きます
-- 「Backend (WSL, Spring Boot)」を選択して開始します
-- これにより、[.vscode/launch.json](.vscode/launch.json) の構成でデバッグ接続されます
+- VS Code の「Terminal」→「Run Task」から `backend:run-wsl` を実行します
+- デバッグ接続が必要な場合は、タスクのJVM起動引数にJDWP設定を追加してからVS CodeのJavaデバッガでポート `5005` へ接続します
 
 ### 3. タスクから起動する方法
 
@@ -168,7 +169,7 @@ export DB_PASSWORD=shift_password
 
 ### パスワード変更メール設定
 
-会員画面からのパスワード変更では、登録済みメールアドレスへ再設定URLと確認コードを送信します。SMTP サーバーを使用する環境では、バックエンド起動前に次の環境変数を設定してください。
+会員画面からのパスワード変更では、登録済みメールアドレスへ再設定URLと確認コードを送信します。メンバ新規登録時の初回ログイン情報も同じSMTP設定を使用します。SMTP サーバーを使用する環境では、バックエンド起動前に次の環境変数を設定してください。
 
 ```bash
 export SMTP_HOST=smtp.example.com
@@ -185,6 +186,7 @@ export PASSWORD_RESET_BASE_URL=https://scheduler.example.com/password-reset
 - `SMTP_PORT` の既定値は `587`、`SMTP_AUTH` と `SMTP_STARTTLS` の既定値は `true` です。
 - `PASSWORD_RESET_BASE_URL` はメールに記載する再設定画面のURLです。未設定時は `http://localhost:5173/password-reset` になります。
 - Docker Compose で起動する場合も、これらの環境変数を `shift-scheduler` サービスへ渡してください。認証情報はリポジトリへ保存せず、`.env` またはデプロイ先のシークレット管理機能で設定してください。
+- SMTP未設定または送信失敗時は、初回ログイン情報またはパスワード変更URL・確認コードを該当画面のダイアログに表示します。
 
 2. React をビルド
 
@@ -224,6 +226,8 @@ npm run dev
 ### 認証エンドポイント
 - `POST /api/login` - ログイン (staffCode, password を入力)
   - レスポンス: `{ token, staffId, staffCode, staffName, roleLevel }`
+- `POST /api/password-reset-requests` - ログイン中の本人がパスワード変更情報を発行
+- `POST /api/password-resets/{staffId}/{token}` - 確認コードと新しいパスワードで変更を完了
 
 ### 保護されたエンドポイント（認証必須）
 
@@ -256,8 +260,8 @@ npm run dev
 
 - Flyway を使用しています
 - マイグレーションファイル配置先: `backend/src/main/resources/db/migration`
-- 初期スキーマ: `V1__create_shifts_table.sql`
-- 認証関連: `V11__add_password_to_staffs.sql` (password_hash列追加)
+- 初期スキーマ: `V001__001_initialize_schema.sql`
+- 認証関連: `V008__008_add_password_reset_tokens.sql`、`V009__009_add_password_changed_at.sql`
 - 既存DB導入時のため `spring.flyway.baseline-on-migrate=true` を設定済みです
 
 ローカルでサーバー起動時（`mvnw spring-boot:run`）または Docker 起動時に、未適用のマイグレーションが自動適用されます。
@@ -266,6 +270,6 @@ npm run dev
 
 - **JWT トークン** - 24時間有効期限で発行
 - **パスワードハッシング** - SHA-256 + ランダムソルト
-- **認証フィルター** - すべてのリクエストに JWT 検証
+- **認証フィルター** - すべての保護APIでJWTを検証し、パスワード変更前に発行されたJWTを無効化
 - **ロール認可** - メソッドレベルで @RequireRole アノテーション適用
 - **本番環境では必須** - JWT秘密鍵の変更（JwtTokenUtil.java 参照）

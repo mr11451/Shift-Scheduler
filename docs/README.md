@@ -10,6 +10,7 @@
 - `admin_shift_type_screen.md` : シフト種類管理画面
 - `shift_edit_screen.md` : シフト編集画面
 - `staff_calendar_screen.md` : スタッフカレンダー画面
+- `password_reset_screen.md` : パスワード変更画面
 - `staff_edit_screen.md` : スタッフ編集画面
 - `shift_request_flow.md` : シフト申請の状態フローと操作フロー
 
@@ -23,6 +24,7 @@
 - `admin_shift_type_screen.md` : 独立URLなし（`/admin` 内の「シフト種類管理」タブで表示）
 - `shift_edit_screen.md` : `/admin/shifts`
 - `staff_calendar_screen.md` : `/member`
+- `password_reset_screen.md` : `/password-reset/:staffId/:token`（ワンタイムURL）
 - `staff_edit_screen.md` : 独立URLなし（仕様書のみ。現行ルーティングには未割当）
 
 ## 設計資料（画面以外）
