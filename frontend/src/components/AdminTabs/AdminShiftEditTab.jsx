@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { fetchWithAuth } from "../../utils/fetchWithAuth";
 import { AuthContext } from "../../context/AuthContext";
-import { parseHolidayDates } from "../../utils/holidayDates";
+import { isHolidayDate, parseHolidayDates, parseHolidayWeekdays } from "../../utils/holidayDates";
 import "./AdminShiftEditTab.css";
 
 const REQUEST_STATUS_SHORT_LABELS = {
@@ -10,6 +10,8 @@ const REQUEST_STATUS_SHORT_LABELS = {
   APPLIED: "承認",
   REJECTED: "却下",
 };
+
+const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
 export default function AdminShiftEditTab() {
   const { auth } = useContext(AuthContext);
@@ -23,6 +25,7 @@ export default function AdminShiftEditTab() {
   const [shiftAssignments, setShiftAssignments] = useState({}); // key: staffId-date, value: shiftTypeId
   const [shiftRequests, setShiftRequests] = useState({}); // key: staffId-date, value: request
   const [holidayDates, setHolidayDates] = useState([]);
+  const [holidayWeekdays, setHolidayWeekdays] = useState([]);
   const [isCurrentMonthConfirmed, setIsCurrentMonthConfirmed] = useState(false);
   const [confirmingMonth, setConfirmingMonth] = useState(false);
   const [autoGenerating, setAutoGenerating] = useState(false);
@@ -138,6 +141,38 @@ export default function AdminShiftEditTab() {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   }
 
+  function getWeekday(day) {
+    return new Date(currentDate.getFullYear(), currentDate.getMonth(), day).getDay();
+  }
+
+  function getWeekdayLabel(day) {
+    const weekDay = getWeekday(day);
+    return WEEKDAY_LABELS[weekDay];
+  }
+
+  function getWeekendColumnStyle(day) {
+    const weekDay = getWeekday(day);
+
+    if (weekDay === 0) {
+      return {
+        backgroundColor: "#fff1f0",
+        color: "#c2410c",
+      };
+    }
+
+    if (weekDay === 6) {
+      return {
+        backgroundColor: "#eff6ff",
+        color: "#1d4ed8",
+      };
+    }
+
+    return {
+      backgroundColor: "#ffffff",
+      color: "inherit",
+    };
+  }
+
   async function loadHolidayDates() {
     try {
       const res = await fetchWithAuth("/api/system-settings", { redirectOnUnauthorized: false });
@@ -147,10 +182,14 @@ export default function AdminShiftEditTab() {
       }
       const settings = await res.json();
       const holidaySetting = Array.isArray(settings) ? settings.find((item) => item.settingKey === "holidayDates") : null;
+      const holidayWeekdaySetting = Array.isArray(settings) ? settings.find((item) => item.settingKey === "holidayWeekdays") : null;
       const rawValue = holidaySetting?.settingValueText || "";
+      const rawWeekdays = holidayWeekdaySetting?.settingValueText || "";
       setHolidayDates(parseHolidayDates(rawValue));
+      setHolidayWeekdays(parseHolidayWeekdays(rawWeekdays));
     } catch (e) {
       setHolidayDates([]);
+      setHolidayWeekdays([]);
     }
   }
 
@@ -688,15 +727,18 @@ export default function AdminShiftEditTab() {
             {days.map((day) => (
               <div
                 key={day}
+                className="shift-date-header-cell"
                 style={{
                   padding: "0.5rem",
                   fontWeight: 600,
                   textAlign: "center",
                   minWidth: "3rem",
                   borderRight: "1px solid var(--line)",
+                  ...getWeekendColumnStyle(day),
                 }}
               >
-                {day}
+                <span className="shift-date-number">{day}</span>
+                <span className="shift-date-weekday">({getWeekdayLabel(day)})</span>
               </div>
             ))}
           </div>
@@ -719,7 +761,7 @@ export default function AdminShiftEditTab() {
                       padding: "0.75rem",
                       minWidth: "3rem",
                       borderRight: "1px solid var(--line)",
-                      backgroundColor: "#f0f0f0",
+                      ...getWeekendColumnStyle(day),
                     }}
                   />
                 ))}
@@ -732,7 +774,8 @@ export default function AdminShiftEditTab() {
                     const cellKey = `${staff.id}-${dateStr}`;
                     const currentShiftName = getShiftName(staff.id, day);
                     const shiftRequest = getShiftRequest(staff.id, day);
-                    const isHoliday = holidayDates.includes(dateStr);
+                    const weekendColumnStyle = getWeekendColumnStyle(day);
+                    const isHoliday = isHolidayDate(dateStr, holidayDates, holidayWeekdays);
                     const isActive = activeCellKey === cellKey;
                     const assignment = shiftAssignments[cellKey];
                     const currentShiftTypeId = assignment ? String(assignment.shiftTypeId) : "";
@@ -754,7 +797,8 @@ export default function AdminShiftEditTab() {
                             minWidth: "3rem",
                             border: "none",
                             borderRight: "1px solid var(--line)",
-                            backgroundColor: "#fff",
+                            backgroundColor: weekendColumnStyle.backgroundColor,
+                            color: weekendColumnStyle.color,
                           }}
                         >
                           <option value="">-</option>
@@ -777,8 +821,16 @@ export default function AdminShiftEditTab() {
                           minWidth: "3rem",
                           border: "none",
                           borderRight: "1px solid var(--line)",
-                          backgroundColor: isHoliday ? "#fef3c7" : shouldHighlightRed ? "#fef2f2" : "#fff",
-                          color: isHoliday ? "#b45309" : shouldHighlightRed ? "#b91c1c" : "inherit",
+                          backgroundColor: isHoliday
+                            ? "#fef3c7"
+                            : shouldHighlightRed
+                              ? "#fef2f2"
+                              : weekendColumnStyle.backgroundColor,
+                          color: isHoliday
+                            ? "#b45309"
+                            : shouldHighlightRed
+                              ? "#b91c1c"
+                              : weekendColumnStyle.color,
                           cursor: isHoliday ? "not-allowed" : "pointer",
                         }}
                         title={isHoliday ? "休業日です" : "クリックしてシフトを選択"}

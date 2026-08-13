@@ -1,6 +1,6 @@
 .staff-form-container {
   width: 100%;
-  padding: 20px;
+  padding: 18px;
   border: 1px solid #ddd;
   border-radius: 8px;
   background-color: #f9f9f9;
@@ -40,8 +40,8 @@
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .form-row.full {
@@ -65,11 +65,14 @@
 }
 
 .form-control {
-  padding: 10px 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 14px;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .form-control:focus {
@@ -113,6 +116,18 @@
   gap: 12px;
   margin-top: 20px;
   justify-content: center;
+}
+
+@media (max-width: 1100px) {
+  .form-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .btn {

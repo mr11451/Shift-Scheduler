@@ -52,6 +52,24 @@
   height: 2.5rem;
 }
 
+.shift-date-header-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.05;
+}
+
+.shift-date-number {
+  font-size: 0.9rem;
+}
+
+.shift-date-weekday {
+  font-size: 0.65rem;
+  color: currentColor;
+  opacity: 0.8;
+}
+
 .shift-scroll-column > div > div {
   display: flex;
   align-items: center;

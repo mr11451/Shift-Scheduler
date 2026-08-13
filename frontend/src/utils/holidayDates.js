@@ -1,3 +1,20 @@
+const WEEKDAY_LABEL_TO_INDEX = {
+  "0": 0,
+  "1": 1,
+  "2": 2,
+  "3": 3,
+  "4": 4,
+  "5": 5,
+  "6": 6,
+  "日": 0,
+  "月": 1,
+  "火": 2,
+  "水": 3,
+  "木": 4,
+  "金": 5,
+  "土": 6,
+};
+
 export function parseHolidayDates(rawValue = "") {
   if (typeof rawValue !== "string") {
     return [];
@@ -11,8 +28,47 @@ export function parseHolidayDates(rawValue = "") {
     .filter(Boolean);
 }
 
-export function isHolidayDate(dateStr, holidayDates = []) {
-  return holidayDates.includes(dateStr);
+export function parseHolidayDatesFromCsv(rawValue = "") {
+  if (typeof rawValue !== "string") {
+    return [];
+  }
+
+  const dateMatches = rawValue.match(/\d{4}\s*[-/年]\s*\d{1,2}\s*[-/月]\s*\d{1,2}\s*日?/g) || [];
+  const uniqueDates = new Set(
+    dateMatches
+      .map((value) => normalizeHolidayDate(value))
+      .filter(Boolean)
+  );
+
+  return Array.from(uniqueDates);
+}
+
+export function parseHolidayWeekdays(rawValue = "") {
+  if (typeof rawValue !== "string") {
+    return [];
+  }
+
+  const uniqueWeekdays = new Set(
+    rawValue
+      .split(/[\n,]+/)
+      .map((value) => normalizeHolidayWeekday(value))
+      .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6)
+  );
+
+  return Array.from(uniqueWeekdays).sort((left, right) => left - right);
+}
+
+export function isHolidayDate(dateStr, holidayDates = [], holidayWeekdays = []) {
+  if (holidayDates.includes(dateStr)) {
+    return true;
+  }
+
+  if (typeof dateStr !== "string" || !dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return false;
+  }
+
+  const weekday = new Date(`${dateStr}T00:00:00`).getDay();
+  return holidayWeekdays.includes(weekday);
 }
 
 function normalizeHolidayDate(value) {
@@ -31,4 +87,14 @@ function normalizeHolidayDate(value) {
   }
 
   return trimmed;
+}
+
+function normalizeHolidayWeekday(value) {
+  const trimmed = String(value || "").trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  return WEEKDAY_LABEL_TO_INDEX[trimmed] ?? null;
 }

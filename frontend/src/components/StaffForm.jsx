@@ -341,9 +341,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
               required
             />
           </div>
-        </div>
 
-        <div className="form-row">
           <div className="form-group">
             <label htmlFor="email">メールアドレス</label>
             <input
@@ -374,6 +372,20 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
 
         <div className="form-row">
           <div className="form-group">
+            <label htmlFor="phone">電話番号</label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              value={form.phone}
+              onChange={onChange}
+              className="form-control"
+              pattern="[0-9\-]*"
+              placeholder="例: 090-1234-5678"
+            />
+          </div>
+
+          <div className="form-group">
             <label htmlFor="responsibility">担当 *</label>
             <input
               type="text"
@@ -403,7 +415,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
           </div>
         </div>
 
-        <div className="form-row">
+        <div className="form-row full">
           <div className="form-group">
             <label>避けるシフト</label>
             <div style={{ display: "grid", gap: "0.6rem", marginTop: "0.5rem" }}>
@@ -428,7 +440,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
           </div>
         </div>
 
-        <div className="form-row">
+        <div className="form-row full">
           <div className="form-group">
             <label>希望シフト帯</label>
             <div style={{ display: "grid", gap: "0.6rem", marginTop: "0.5rem" }}>
@@ -454,7 +466,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
         </div>
 
         {canEditGroup && (
-          <div className="form-row">
+          <div className="form-row full">
             <div className="form-group">
               <label htmlFor="groupId">グループ</label>
               <select
@@ -486,7 +498,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
           </div>
         )}
 
-        <div className="form-row">
+        <div className="form-row full">
           <div className="form-group">
             <label>資格（複数選択可）</label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", marginTop: "0.5rem" }}>
@@ -511,7 +523,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
         </div>
 
         {isEditMode && (
-          <div className="form-row">
+          <div className="form-row full">
             <div className="form-group checkbox">
               <input
                 type="checkbox"

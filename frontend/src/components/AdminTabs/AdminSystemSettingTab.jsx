@@ -1,18 +1,32 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { parseHolidayDatesFromCsv, parseHolidayWeekdays } from "../../utils/holidayDates";
+
+const WEEKDAY_OPTIONS = [
+  { value: 0, label: "日" },
+  { value: 1, label: "月" },
+  { value: 2, label: "火" },
+  { value: 3, label: "水" },
+  { value: 4, label: "木" },
+  { value: 5, label: "金" },
+  { value: 6, label: "土" },
+];
 
 const SETTING_KEYS = {
   calendarViewPermissionEnabled: "calendarViewPermissionEnabled",
   memberLoginNotificationEnabled: "memberLoginNotificationEnabled",
   memberLoginNotificationBaseUrl: "memberLoginNotificationBaseUrl",
   holidayDates: "holidayDates",
+  holidayWeekdays: "holidayWeekdays",
 };
 
 export default function AdminSystemSettingTab({ onCancel }) {
+  const holidayCsvInputRef = useRef(null);
   const [settings, setSettings] = useState({
     calendarViewPermissionEnabled: false,
     memberLoginNotificationEnabled: false,
     memberLoginNotificationBaseUrl: "https://example.com",
     holidayDates: "",
+    holidayWeekdays: [],
   });
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
@@ -58,6 +72,8 @@ export default function AdminSystemSettingTab({ onCancel }) {
           settingMap.get(SETTING_KEYS.memberLoginNotificationBaseUrl)?.settingValueText || "https://example.com",
         holidayDates:
           settingMap.get(SETTING_KEYS.holidayDates)?.settingValueText || "",
+        holidayWeekdays:
+          parseHolidayWeekdays(settingMap.get(SETTING_KEYS.holidayWeekdays)?.settingValueText || ""),
       });
     } catch (e) {
       setMessage(e.message);
@@ -71,6 +87,49 @@ export default function AdminSystemSettingTab({ onCancel }) {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+  }
+
+  function handleHolidayWeekdayToggle(weekday) {
+    setSettings((prev) => {
+      const isSelected = prev.holidayWeekdays.includes(weekday);
+      const nextWeekdays = isSelected
+        ? prev.holidayWeekdays.filter((value) => value !== weekday)
+        : [...prev.holidayWeekdays, weekday].sort((left, right) => left - right);
+
+      return {
+        ...prev,
+        holidayWeekdays: nextWeekdays,
+      };
+    });
+  }
+
+  async function handleHolidayCsvImport(e) {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const rawValue = await file.text();
+      const parsedDates = parseHolidayDatesFromCsv(rawValue);
+
+      if (parsedDates.length === 0) {
+        throw new Error("CSVファイルから有効な休業日を読み取れませんでした。YYYY-MM-DD 形式の日付を含めてください。");
+      }
+
+      setSettings((prev) => ({
+        ...prev,
+        holidayDates: parsedDates.join(","),
+      }));
+      setMessage(`${parsedDates.length}件の休業日をCSVから読み込みました。保存すると反映されます。`);
+      setMessageType("success");
+    } catch (error) {
+      setMessage(error.message || "CSVファイルの読み込みに失敗しました。");
+      setMessageType("error");
+    } finally {
+      e.target.value = "";
+    }
   }
 
   async function handleSubmit(e) {
@@ -101,6 +160,12 @@ export default function AdminSystemSettingTab({ onCancel }) {
         ),
         authFetchNoRedirect(
           `/api/system-settings/${SETTING_KEYS.holidayDates}/text?value=${encodeURIComponent(settings.holidayDates)}`,
+          {
+            method: "PUT",
+          }
+        ),
+        authFetchNoRedirect(
+          `/api/system-settings/${SETTING_KEYS.holidayWeekdays}/text?value=${encodeURIComponent(settings.holidayWeekdays.join(","))}`,
           {
             method: "PUT",
           }
@@ -212,7 +277,34 @@ export default function AdminSystemSettingTab({ onCancel }) {
 
         <div style={{ borderBottom: "1px solid var(--line)", paddingBottom: "1.5rem" }}>
           <h3 style={{ marginTop: 0, marginBottom: "1rem" }}>休業日設定</h3>
-          <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>休業日（YYYY-MM-DD 形式、カンマ区切り）</label>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", marginBottom: "0.5rem" }}>
+            <label style={{ display: "block", marginBottom: 0, fontWeight: 600 }}>休業日（YYYY-MM-DD 形式、カンマ区切り）</label>
+            <>
+              <input
+                ref={holidayCsvInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                onChange={handleHolidayCsvImport}
+                style={{ display: "none" }}
+              />
+              <button
+                type="button"
+                onClick={() => holidayCsvInputRef.current?.click()}
+                style={{
+                  padding: "0.55rem 0.9rem",
+                  backgroundColor: "#0f766e",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                CSV読込
+              </button>
+            </>
+          </div>
           <textarea
             name="holidayDates"
             value={settings.holidayDates}
@@ -229,6 +321,40 @@ export default function AdminSystemSettingTab({ onCancel }) {
           />
           <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.5rem" }}>
             例: 2026-01-01,2026-05-06
+          </div>
+          <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.35rem" }}>
+            CSV は 1 列でも複数列でも構いません。含まれる日付を抽出して入力欄へ反映します。
+          </div>
+          <div style={{ marginTop: "1rem" }}>
+            <div style={{ marginBottom: "0.5rem", fontWeight: 600 }}>曜日ごとの休業日</div>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "nowrap", overflowX: "auto" }}>
+              {WEEKDAY_OPTIONS.map((weekday) => (
+                <label
+                  key={weekday.value}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                    padding: "0.45rem 0.65rem",
+                    border: "1px solid var(--line)",
+                    borderRadius: "999px",
+                    backgroundColor: settings.holidayWeekdays.includes(weekday.value) ? "#ecfeff" : "#fff",
+                    whiteSpace: "nowrap",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={settings.holidayWeekdays.includes(weekday.value)}
+                    onChange={() => handleHolidayWeekdayToggle(weekday.value)}
+                  />
+                  <span>{weekday.label}</span>
+                </label>
+              ))}
+            </div>
+            <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.35rem" }}>
+              チェックした曜日は毎週の休業日として扱われます。保存時に DB へ登録されます。
+            </div>
           </div>
         </div>
 

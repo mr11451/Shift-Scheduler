@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "./context/AuthContext";
 import { fetchWithAuth } from "./utils/fetchWithAuth";
-import { parseHolidayDates } from "./utils/holidayDates";
+import { isHolidayDate, parseHolidayDates, parseHolidayWeekdays } from "./utils/holidayDates";
 import { getMonthStatus } from "./utils/shiftMonthStatus";
 import { canSelectTarget } from "./utils/viewAccess";
 
@@ -17,7 +17,7 @@ const STATUS_LABELS = {
   CANCELED: "取り消し済",
 };
 
-function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendarDate, setCalendarDate, shiftAssignments, shiftRequests, holidayDates, isMonthConfirmed }) {
+function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendarDate, setCalendarDate, shiftAssignments, shiftRequests, holidayDates, holidayWeekdays, isMonthConfirmed }) {
   const monthKey = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}`;
   const monthStatus = getMonthStatus({ monthKey, isConfirmed: isMonthConfirmed });
   const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -38,7 +38,7 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
     return shiftRequests.find((request) => request.workDate === dateStr);
   };
 
-  const isHoliday = (dateStr) => holidayDates.includes(dateStr);
+  const isHoliday = (dateStr) => isHolidayDate(dateStr, holidayDates, holidayWeekdays);
 
   const days = [];
   for (let i = 0; i < firstDay; i++) days.push(null);
@@ -158,7 +158,7 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
   );
 }
 
-function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftTypeId, onSubmit, loading, message, messageType, shiftRequests, onDeleteRequest, permissionRequests, onApprovePermission, onRejectPermission, onCancelPermission, approvedPermissions, onRemoveViewTarget, holidayDates, isMonthConfirmed }) {
+function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftTypeId, onSubmit, loading, message, messageType, shiftRequests, onDeleteRequest, permissionRequests, onApprovePermission, onRejectPermission, onCancelPermission, approvedPermissions, onRemoveViewTarget, holidayDates, holidayWeekdays, isMonthConfirmed }) {
   const sortedRequests = [...(shiftRequests || [])].sort((a, b) => (b.workDate || "").localeCompare(a.workDate || ""));
 
   return (
@@ -212,7 +212,7 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
               <li key={request.id} style={{ border: "1px solid var(--line)", borderRadius: "8px", padding: "0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>{request.workDate}</div>
-                  {holidayDates.includes(request.workDate) && (
+                  {isHolidayDate(request.workDate, holidayDates, holidayWeekdays) && (
                     <div style={{ color: "#b45309", fontSize: "0.85rem", marginTop: "0.2rem", fontWeight: 600 }}>
                       休業日
                     </div>
@@ -309,6 +309,7 @@ export default function MemberPage() {
   const [messageType, setMessageType] = useState("");
   const [loading, setLoading] = useState(false);
   const [holidayDates, setHolidayDates] = useState([]);
+  const [holidayWeekdays, setHolidayWeekdays] = useState([]);
   const [isCurrentMonthConfirmed, setIsCurrentMonthConfirmed] = useState(false);
   const [isSelectedDateConfirmed, setIsSelectedDateConfirmed] = useState(false);
 
@@ -450,10 +451,14 @@ export default function MemberPage() {
       if (!res.ok) throw new Error("休業日の取得に失敗しました。" );
       const settings = await res.json();
       const holidaySetting = Array.isArray(settings) ? settings.find((item) => item.settingKey === "holidayDates") : null;
+      const holidayWeekdaySetting = Array.isArray(settings) ? settings.find((item) => item.settingKey === "holidayWeekdays") : null;
       const rawValue = holidaySetting?.settingValueText || "";
+      const rawWeekdays = holidayWeekdaySetting?.settingValueText || "";
       setHolidayDates(parseHolidayDates(rawValue));
+      setHolidayWeekdays(parseHolidayWeekdays(rawWeekdays));
     } catch (e) {
       setHolidayDates([]);
+      setHolidayWeekdays([]);
     }
   }
 
@@ -701,6 +706,7 @@ export default function MemberPage() {
             shiftAssignments={shiftAssignments}
             shiftRequests={shiftRequests}
             holidayDates={holidayDates}
+            holidayWeekdays={holidayWeekdays}
             isMonthConfirmed={isCurrentMonthConfirmed}
           />
         ) : (
@@ -723,6 +729,7 @@ export default function MemberPage() {
             approvedPermissions={approvedPermissions}
             onRemoveViewTarget={(permissionId) => handlePermissionAction(permissionId, "cancel")}
             holidayDates={holidayDates}
+            holidayWeekdays={holidayWeekdays}
             isMonthConfirmed={isSelectedDateConfirmed}
           />
         )}
