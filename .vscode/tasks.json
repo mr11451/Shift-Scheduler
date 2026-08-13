@@ -1,600 +1,66 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "Run ShiftAssignmentServiceTests",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Run ShiftAssignmentServiceTests",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Run ShiftAssignmentServiceTests CMD",
-			"type": "shell",
-			"command": "cmd",
-			"args": [
-				"/c",
-				"cd /d c:\\Users\\kiiji\\source\\repos\\Shift-Scheduler\\backend && mvnw.cmd -Dtest=ShiftAssignmentServiceTests test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Run ShiftAssignmentServiceTests WSL Retry2",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Run ShiftAssignmentServiceTests After Fix",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Run ShiftAssignmentServiceTests Final",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend RoleLabels",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend ShiftEdit NG Conditions",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend Consecutive Violation",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend NG parser compatibility",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend NG Conditions Recheck",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Compile Backend After NG Rename",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-DskipTests",
-				"compile"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After NG Rename",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend Final NG Rename",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Compile Backend After Full Legacy Removal",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-DskipTests",
-				"compile"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After Full Legacy Removal",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Run ShiftAssignmentServiceTests Only",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Run ShiftAssignmentServiceTests NG weekday fix",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend NG weekday red fix",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Re-run ShiftAssignmentServiceTests NG weekday fix",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Run ShiftAssignmentServiceTests NG consideration",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend NG red consideration",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Run ShiftAssignmentServiceTests NG OR logic",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend NG OR logic",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Re-run ShiftAssignmentServiceTests after OR test update",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After Removing NG Background",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After Staff Header Alignment",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After Staff Sort Headers",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After Auto Rule Select Width Change",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After Required Count Width Change",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After System Setting Save Return",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After Required Count Highlight",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After Date-Level Shortage Highlight",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Test ShiftAssignmentService Balancing",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Test Auto Generation Random Date Order",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Recheck ShiftAssignmentService Tests After Revert",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Test Random Date Order Generation",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Retest Random Date Order After Test Update",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Test Random Member Order Generation",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Test Group Rule Auto Generation",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After Group Rules UI",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Retest Group Independent Generation",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Final Backend Regression After Group Rule Changes",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
-				"./mvnw",
-				"-Dtest=ShiftAssignmentServiceTests",
-				"test"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After Group Name Fix",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build Frontend After Group-Based Required Count Eval",
-			"type": "shell",
-			"command": "wsl",
-			"args": [
-				"--cd",
-				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
-				"npm",
-				"run",
-				"build"
-			],
-			"isBackground": false
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "backend:run-wsl",
+      "type": "shell",
+      "command": "wsl",
+      "args": [
+        "-e",
+        "bash",
+        "-lc",
+        "cd \"$(wslpath '${workspaceFolder}/backend')\" && exec ./mvnw spring-boot:run -Dspring-boot.run.arguments=--spring.profiles.active=dev"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "backend:compile-wsl",
+      "type": "shell",
+      "command": "wsl",
+      "args": [
+        "-e",
+        "bash",
+        "-lc",
+        "cd \"$(wslpath '${workspaceFolder}/backend')\" && ./mvnw -DskipTests compile"
+      ],
+      "isBackground": false
+    },
+    {
+      "label": "backend:test-wsl",
+      "type": "shell",
+      "command": "wsl",
+      "args": [
+        "-e",
+        "bash",
+        "-lc",
+        "cd \"$(wslpath '${workspaceFolder}/backend')\" && ./mvnw test"
+      ],
+      "isBackground": false
+    },
+    {
+      "label": "backend:test-shift-assignment-wsl",
+      "type": "shell",
+      "command": "wsl",
+      "args": [
+        "-e",
+        "bash",
+        "-lc",
+        "cd \"$(wslpath '${workspaceFolder}/backend')\" && ./mvnw -Dtest=ShiftAssignmentServiceTests test"
+      ],
+      "isBackground": false
+    },
+    {
+      "label": "frontend:build-wsl",
+      "type": "shell",
+      "command": "wsl",
+      "args": [
+        "-e",
+        "bash",
+        "-lc",
+        "cd \"$(wslpath '${workspaceFolder}/frontend')\" && npm run build"
+      ],
+      "isBackground": false
+    }
+  ]
 }
