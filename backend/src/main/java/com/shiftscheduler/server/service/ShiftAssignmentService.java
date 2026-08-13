@@ -692,10 +692,6 @@ public class ShiftAssignmentService {
         int required = Math.max(0, rules.requiredCounts.getOrDefault(shiftType.getId(), 0));
         if (required <= 0) continue;
 
-        if (hasVacationRequestsForDate(currentDate, editableStaffs, requestByKey)) {
-          continue;
-        }
-
         int currentCount = dailyShiftCount
             .getOrDefault(currentDate, Map.of())
             .getOrDefault(shiftType.getId(), 0);
@@ -1149,7 +1145,8 @@ public class ShiftAssignmentService {
 
     Long requestedShiftTypeId = request.getDesiredShiftType() != null ? request.getDesiredShiftType().getId() : null;
     if (requestedShiftTypeId == null) {
-      return true;
+      // 休暇希望は「必須考慮」の場合のみ強制的に休みとして扱う。
+      return !"REQUIRED".equalsIgnoreCase(rules.desiredShiftMode);
     }
 
     if (forceRequested) {
@@ -1158,23 +1155,6 @@ public class ShiftAssignmentService {
 
     // 申請は弱いヒントとして扱い、必要人数の充足を妨げないようにする。
     return true;
-  }
-
-  private boolean hasVacationRequestsForDate(
-      LocalDate workDate,
-      List<Staff> editableStaffs,
-      Map<String, ShiftRequest> requestByKey) {
-    if (workDate == null || editableStaffs == null || editableStaffs.isEmpty()) {
-      return false;
-    }
-
-    for (Staff staff : editableStaffs) {
-      ShiftRequest request = requestByKey.get(staff.getId() + "-" + workDate);
-      if (request != null && request.getDesiredShiftType() == null) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private int resolveMonthlyMaxWorkdays(AutoShiftGenerationRules rules, LocalDate date) {

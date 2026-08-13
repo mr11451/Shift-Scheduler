@@ -3,6 +3,7 @@ package com.shiftscheduler.server.service;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,10 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.shiftscheduler.server.api.ShiftRequestCreateRequest;
 import com.shiftscheduler.server.api.ShiftRequestResponse;
 import com.shiftscheduler.server.api.ShiftRequestUpdateRequest;
+import com.shiftscheduler.server.domain.ShiftAssignment;
 import com.shiftscheduler.server.domain.ShiftRequest;
 import com.shiftscheduler.server.domain.ShiftRequestStatus;
 import com.shiftscheduler.server.domain.ShiftType;
 import com.shiftscheduler.server.domain.Staff;
+import com.shiftscheduler.server.repository.ShiftAssignmentRepository;
 import com.shiftscheduler.server.repository.ShiftRequestRepository;
 import com.shiftscheduler.server.repository.ShiftTypeRepository;
 import com.shiftscheduler.server.repository.StaffRepository;
@@ -31,6 +34,9 @@ public class ShiftRequestService {
 
   @Autowired
   private ShiftTypeRepository shiftTypeRepository;
+
+  @Autowired
+  private ShiftAssignmentRepository shiftAssignmentRepository;
 
   @Autowired
   private AccessControlService accessControlService;
@@ -207,6 +213,44 @@ public class ShiftRequestService {
     if (shiftRequest.getWorkDate() != null && shiftRequest.getWorkDate().isBefore(LocalDate.now())) {
       throw new IllegalArgumentException("過去の日付の申請は操作できません。");
     }
+  }
+
+  /**
+   * 月確定時に、その月の提出済み申請を確定シフトと照合し、一致すれば反映済み、
+   * 一致しなければ不採用に遷移させる。休暇申請はシフトが割り当てられていない状態を一致とみなす。
+   */
+  @Transactional
+  public void reconcileShiftRequestsForMonth(LocalDate startDate, LocalDate endDate) {
+    List<ShiftRequest> submittedRequests = shiftRequestRepository.findUnreflectedByDateRange(startDate, endDate, ShiftRequestStatus.SUBMITTED);
+    if (submittedRequests.isEmpty()) {
+      return;
+    }
+
+    Map<String, ShiftAssignment> assignmentByKey = shiftAssignmentRepository.findByDateRange(startDate, endDate)
+        .stream()
+        .collect(Collectors.toMap(
+            assignment -> assignment.getStaff().getId() + "-" + assignment.getWorkDate(),
+            assignment -> assignment,
+            (first, second) -> first));
+
+    OffsetDateTime now = OffsetDateTime.now();
+    for (ShiftRequest request : submittedRequests) {
+      ShiftAssignment assignment = assignmentByKey.get(request.getStaff().getId() + "-" + request.getWorkDate());
+      boolean matches;
+      if (request.getDesiredShiftType() == null) {
+        matches = assignment == null;
+      } else {
+        matches = assignment != null
+            && assignment.getShiftType() != null
+            && request.getDesiredShiftType().getId().equals(assignment.getShiftType().getId());
+      }
+
+      request.setStatus(matches ? ShiftRequestStatus.APPLIED : ShiftRequestStatus.REJECTED);
+      request.setDecidedAt(now);
+      request.setUpdatedAt(now);
+    }
+
+    shiftRequestRepository.saveAll(submittedRequests);
   }
 
   public ShiftRequestResponse getShiftRequestById(Long shiftRequestId) {

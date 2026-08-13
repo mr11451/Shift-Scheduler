@@ -544,8 +544,9 @@ class ShiftAssignmentServiceTests {
         AutoShiftGenerationResultResponse result = shiftAssignmentService.autoGenerateShiftAssignments(100L, 2026, 8);
 
         assertEquals(30, result.getGeneratedCount());
-        assertTrue(result.getUnmetConditions().isEmpty());
-        assertEquals(0, result.getUnassignedRequiredCount());
+        // 唯一のスタッフが休暇希望のため、その日は必要人数を満たせず未充足として記録される。
+        assertEquals(1, result.getUnmetConditions().size());
+        assertEquals(1, result.getUnassignedRequiredCount());
 
         ArgumentCaptor<List<ShiftAssignment>> captor = ArgumentCaptor.forClass(List.class);
         verify(shiftAssignmentRepository).saveAll(captor.capture());

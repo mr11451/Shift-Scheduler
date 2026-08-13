@@ -1,6 +1,9 @@
 package com.shiftscheduler.server.service;
 
 import java.time.OffsetDateTime;
+import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,6 +30,9 @@ public class SystemSettingService {
 
   @Autowired
   private StaffRepository staffRepository;
+
+  @Autowired
+  private ShiftRequestService shiftRequestService;
 
   @Autowired
   private AccessControlService accessControlService;
@@ -149,6 +155,37 @@ public class SystemSettingService {
     setting.setUpdatedBy(updater);
     setting.setUpdatedAt(OffsetDateTime.now());
     systemSettingRepository.save(setting);
+  }
+
+  @Transactional
+  public void confirmMonth(Long updaterStaffId, int year, int month) {
+    Staff updater = staffRepository.findById(updaterStaffId)
+        .orElseThrow(() -> new IllegalArgumentException("更新者スタッフが見つかりません。"));
+
+    if (!accessControlService.isMaster(updater) && !accessControlService.isChief(updater)) {
+      throw new IllegalArgumentException("管理者のみ確定操作を行えます。");
+    }
+
+    String monthKey = String.format("%04d-%02d", year, month);
+    List<String> confirmedMonths = new ArrayList<>(new LinkedHashSet<>(parseConfirmedMonths(getSystemSettingTextValue("confirmedShiftMonths"))));
+    if (!confirmedMonths.contains(monthKey)) {
+      confirmedMonths.add(monthKey);
+    }
+
+    SystemSetting setting = systemSettingRepository.findBySettingKey("confirmedShiftMonths")
+        .orElseGet(() -> {
+          SystemSetting created = new SystemSetting();
+          created.setSettingKey("confirmedShiftMonths");
+          return created;
+        });
+
+    setting.setSettingValueText(String.join(",", confirmedMonths));
+    setting.setUpdatedBy(updater);
+    setting.setUpdatedAt(OffsetDateTime.now());
+    systemSettingRepository.save(setting);
+
+    YearMonth yearMonth = YearMonth.of(year, month);
+    shiftRequestService.reconcileShiftRequestsForMonth(yearMonth.atDay(1), yearMonth.atEndOfMonth());
   }
 
   @Transactional

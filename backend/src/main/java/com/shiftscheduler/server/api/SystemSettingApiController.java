@@ -1,14 +1,22 @@
 package com.shiftscheduler.server.api;
 
-import com.shiftscheduler.server.service.SystemSettingService;
-import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Map;
+import com.shiftscheduler.server.service.SystemSettingService;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/system-settings")
@@ -57,6 +65,33 @@ public class SystemSettingApiController {
         "month", month,
         "monthKey", monthKey,
         "confirmed", confirmed));
+  }
+
+  /**
+   * POST /api/system-settings/confirmedShiftMonths/confirm - Confirm a month and reconcile
+   * submitted shift requests for that month (APPLIED if matching the confirmed assignment,
+   * REJECTED otherwise).
+   * Updater staff ID is resolved from JWT-authenticated request context.
+   */
+  @PostMapping("/confirmedShiftMonths/confirm")
+  public ResponseEntity<?> confirmShiftMonth(
+      @RequestParam int year,
+      @RequestParam int month,
+      HttpServletRequest httpRequest) {
+    if (month < 1 || month > 12) {
+      return ResponseEntity.badRequest().body("エラー: 月は1〜12の範囲で指定してください。");
+    }
+
+    try {
+      Long updaterStaffId = getAuthenticatedStaffId(httpRequest);
+      if (updaterStaffId == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("エラー: 認証が必要です。");
+      }
+      systemSettingService.confirmMonth(updaterStaffId, year, month);
+      return ResponseEntity.ok().build();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body("エラー: " + e.getMessage());
+    }
   }
 
   /**

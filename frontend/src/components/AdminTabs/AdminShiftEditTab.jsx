@@ -582,6 +582,14 @@ export default function AdminShiftEditTab() {
     return isShiftTypeBlocked || isWeekdayBlocked;
   }
 
+  function isWeekdayNgForStaff(staff, day) {
+    if (!Number.isInteger(day)) {
+      return false;
+    }
+
+    return buildNgCondition(staff).weekdayIds.includes(getWeekday(day));
+  }
+
   function findNearestAssignmentDate(staffId, targetDateString, direction) {
     const dates = Object.values(shiftAssignments)
       .filter((assignment) => Number(assignment.staffId) === Number(staffId))
@@ -858,8 +866,8 @@ export default function AdminShiftEditTab() {
     setMessageType("");
 
     try {
-      const res = await fetchWithAuth(`/api/system-settings/confirmedShiftMonths/text?value=${encodeURIComponent(monthKey)}`, {
-        method: "PUT",
+      const res = await fetchWithAuth(`/api/system-settings/confirmedShiftMonths/confirm?year=${currentDate.getFullYear()}&month=${currentDate.getMonth() + 1}`, {
+        method: "POST",
         redirectOnUnauthorized: false,
       });
 
@@ -1216,6 +1224,7 @@ export default function AdminShiftEditTab() {
                     const isShiftGapViolation = isMinimumShiftGapViolation(staff.id, day, currentShiftTypeId);
                     const isConsecutiveViolation = isConsecutiveWorkdaysViolation(staff.id, day, currentShiftTypeId);
                     const isRequiredCountShortageCell = isRequiredCountShortageDateForStaff(dateStr, staff.id);
+                    const isEmptyCellOnNgWeekday = !currentShiftName && isWeekdayNgForStaff(staff, day);
                     const shouldHighlightRed = isMismatch || isNgBandViolation || isShiftGapViolation || isConsecutiveViolation || isRequiredCountShortageCell;
 
                     if (isActive) {
@@ -1268,7 +1277,7 @@ export default function AdminShiftEditTab() {
                         title={isHoliday ? "休業日です" : "クリックしてシフトを選択"}
                         disabled={isHoliday || (isCurrentMonthConfirmed && !isAdminRole)}
                       >
-                        <span className="shift-cell-symbol">{isHoliday ? "休" : currentShiftName || "-"}</span>
+                        <span className="shift-cell-symbol">{isHoliday ? "休" : currentShiftName || (isEmptyCellOnNgWeekday ? "×" : "-")}</span>
                         {shiftRequest && (
                           <span className={`shift-request-badge status-${shiftRequest.status?.toLowerCase?.() || "unknown"}`}>
                             {shiftRequest.desiredShiftName} {REQUEST_STATUS_SHORT_LABELS[shiftRequest.status] || shiftRequest.status}
