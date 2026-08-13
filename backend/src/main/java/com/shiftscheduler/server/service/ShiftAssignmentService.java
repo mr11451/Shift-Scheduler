@@ -957,46 +957,37 @@ public class ShiftAssignmentService {
       return null;
     }
 
-    StaffSelectionScore best = candidates.get(0);
-    int bestWeight = calculateCandidateWeight(best, workDate, rules);
+    List<StaffSelectionScore> remaining = new ArrayList<>(candidates);
+    remaining = filterToTopTier(remaining, c -> calculateCandidateWeight(c, workDate, rules), true);
+    remaining = filterToTopTier(remaining, c -> c.monthlyWorkCount, false);
+    remaining = filterToTopTier(remaining, c -> c.recentWorkCount, false);
+    remaining = filterToTopTier(remaining, c -> c.consecutiveDays, false);
 
-    for (int i = 1; i < candidates.size(); i++) {
-      StaffSelectionScore candidate = candidates.get(i);
-      int candidateWeight = calculateCandidateWeight(candidate, workDate, rules);
+    // 全ての優先条件が同点の場合は、固定順（スタッフコード順）ではなくランダムに選ぶことで、
+    // 生成のたびに異なる結果になるようにする。
+    return remaining.get(ThreadLocalRandom.current().nextInt(remaining.size()));
+  }
 
-      int comparison = Integer.compare(candidateWeight, bestWeight);
-      if (comparison > 0) {
-        best = candidate;
-        bestWeight = candidateWeight;
-      } else if (comparison == 0) {
-        int monthlyComparison = Integer.compare(candidate.monthlyWorkCount, best.monthlyWorkCount);
-        if (monthlyComparison < 0) {
-          best = candidate;
-          bestWeight = candidateWeight;
-        } else if (monthlyComparison == 0) {
-          int recentComparison = Integer.compare(candidate.recentWorkCount, best.recentWorkCount);
-          if (recentComparison < 0) {
-            best = candidate;
-            bestWeight = candidateWeight;
-          } else if (recentComparison == 0) {
-            int consecutiveComparison = Integer.compare(candidate.consecutiveDays, best.consecutiveDays);
-            if (consecutiveComparison < 0) {
-              best = candidate;
-              bestWeight = candidateWeight;
-            } else if (consecutiveComparison == 0) {
-              String candidateCode = candidate.staff.getStaffCode() == null ? "" : candidate.staff.getStaffCode();
-              String bestCode = best.staff.getStaffCode() == null ? "" : best.staff.getStaffCode();
-              if (candidateCode.compareTo(bestCode) < 0) {
-                best = candidate;
-                bestWeight = candidateWeight;
-              }
-            }
-          }
-        }
+  private List<StaffSelectionScore> filterToTopTier(
+      List<StaffSelectionScore> candidates,
+      java.util.function.ToIntFunction<StaffSelectionScore> keyExtractor,
+      boolean higherIsBetter) {
+    if (candidates.size() <= 1) {
+      return candidates;
+    }
+
+    int bestValue = higherIsBetter ? Integer.MIN_VALUE : Integer.MAX_VALUE;
+    for (StaffSelectionScore candidate : candidates) {
+      int value = keyExtractor.applyAsInt(candidate);
+      if (higherIsBetter ? value > bestValue : value < bestValue) {
+        bestValue = value;
       }
     }
 
-    return best;
+    final int finalBestValue = bestValue;
+    return candidates.stream()
+        .filter(candidate -> keyExtractor.applyAsInt(candidate) == finalBestValue)
+        .collect(Collectors.toList());
   }
 
   private int calculateCandidateWeight(StaffSelectionScore c, LocalDate workDate, AutoShiftGenerationRules rules) {

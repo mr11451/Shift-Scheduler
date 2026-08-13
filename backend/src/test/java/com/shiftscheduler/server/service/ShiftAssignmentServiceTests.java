@@ -458,7 +458,8 @@ class ShiftAssignmentServiceTests {
                 .findFirst()
                 .orElseThrow();
 
-        assertEquals(1L, generatedOnSixth.getStaff().getId());
+        // A・Bは全ての優先条件が同点のため、いずれかがランダムに選ばれる（CはNGシフトで対象外）。
+        assertTrue(List.of(1L, 2L).contains(generatedOnSixth.getStaff().getId()));
     }
 
     @Test

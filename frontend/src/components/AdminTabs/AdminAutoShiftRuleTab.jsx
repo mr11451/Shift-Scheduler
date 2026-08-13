@@ -173,7 +173,7 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
 
   function handleRequiredCountChange(shiftTypeId, value) {
     updateActiveRules({
-      ...prev,
+      ...rules,
       requiredCounts: {
         ...rules.requiredCounts,
         [shiftTypeId]: value,

@@ -158,7 +158,7 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
   );
 }
 
-function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftTypeId, onSubmit, loading, message, messageType, shiftRequests, onDeleteRequest, permissionRequests, onApprovePermission, onRejectPermission, onCancelPermission, approvedPermissions, onRemoveViewTarget, holidayDates, holidayWeekdays, isMonthConfirmed }) {
+function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftTypeId, onSubmit, loading, message, messageType, shiftRequests, onDeleteRequest, onSubmitRequest, permissionRequests, onApprovePermission, onRejectPermission, onCancelPermission, approvedPermissions, onRemoveViewTarget, holidayDates, holidayWeekdays, isMonthConfirmed }) {
   const sortedRequests = [...(shiftRequests || [])].sort((a, b) => (b.workDate || "").localeCompare(a.workDate || ""));
 
   return (
@@ -223,14 +223,24 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
                   </div>
                 </div>
                 {request.status === "DRAFT" && (
-                  <button
-                    type="button"
-                    onClick={() => onDeleteRequest(request.id)}
-                    disabled={request.workDate && new Date(request.workDate) < new Date(new Date().toDateString())}
-                    style={{ padding: "0.4rem 0.7rem", border: "1px solid #dc2626", borderRadius: "6px", backgroundColor: "#fff1f2", color: "#b91c1c", cursor: request.workDate && new Date(request.workDate) < new Date(new Date().toDateString()) ? "not-allowed" : "pointer", opacity: request.workDate && new Date(request.workDate) < new Date(new Date().toDateString()) ? 0.6 : 1 }}
-                  >
-                    {request.workDate && new Date(request.workDate) < new Date(new Date().toDateString()) ? "操作不可" : "削除"}
-                  </button>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button
+                      type="button"
+                      onClick={() => onSubmitRequest(request.id)}
+                      disabled={request.workDate && new Date(request.workDate) < new Date(new Date().toDateString())}
+                      style={{ padding: "0.4rem 0.7rem", border: "1px solid #2563eb", borderRadius: "6px", backgroundColor: "#eff6ff", color: "#1d4ed8", cursor: request.workDate && new Date(request.workDate) < new Date(new Date().toDateString()) ? "not-allowed" : "pointer", opacity: request.workDate && new Date(request.workDate) < new Date(new Date().toDateString()) ? 0.6 : 1 }}
+                    >
+                      {request.workDate && new Date(request.workDate) < new Date(new Date().toDateString()) ? "操作不可" : "申請"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteRequest(request.id)}
+                      disabled={request.workDate && new Date(request.workDate) < new Date(new Date().toDateString())}
+                      style={{ padding: "0.4rem 0.7rem", border: "1px solid #dc2626", borderRadius: "6px", backgroundColor: "#fff1f2", color: "#b91c1c", cursor: request.workDate && new Date(request.workDate) < new Date(new Date().toDateString()) ? "not-allowed" : "pointer", opacity: request.workDate && new Date(request.workDate) < new Date(new Date().toDateString()) ? 0.6 : 1 }}
+                    >
+                      {request.workDate && new Date(request.workDate) < new Date(new Date().toDateString()) ? "操作不可" : "削除"}
+                    </button>
+                  </div>
                 )}
               </li>
             ))}
@@ -298,6 +308,7 @@ export default function MemberPage() {
   const [shiftTypes, setShiftTypes] = useState([]);
   const [shiftAssignments, setShiftAssignments] = useState([]);
   const [shiftRequests, setShiftRequests] = useState([]);
+  const [submittedShiftRequests, setSubmittedShiftRequests] = useState([]);
   const [permissionRequests, setPermissionRequests] = useState([]);
   const [approvedPermissions, setApprovedPermissions] = useState([]);
 
@@ -376,6 +387,14 @@ export default function MemberPage() {
       setShiftRequests([]);
     }
   }, [selectedStaffId, calendarDate]);
+
+  useEffect(() => {
+    if (selectedStaffId) {
+      loadSubmittedShiftRequests();
+    } else {
+      setSubmittedShiftRequests([]);
+    }
+  }, [selectedStaffId]);
 
   useEffect(() => {
     if (auth?.staffId && !selectedStaffId) {
@@ -502,6 +521,19 @@ export default function MemberPage() {
     }
   }
 
+  async function loadSubmittedShiftRequests() {
+    try {
+      const now = new Date();
+      const currentMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const farFutureEnd = "9999-12-31";
+      const res = await fetchWithAuth(`/api/shift-requests/staff/${selectedStaffId}?startDate=${currentMonthStart}&endDate=${farFutureEnd}`);
+      if (!res.ok) throw new Error("シフト申請一覧の取得に失敗しました。");
+      setSubmittedShiftRequests(await res.json());
+    } catch (e) {
+      showMessage(e.message, "error");
+    }
+  }
+
   async function loadShiftAssignments(start, end) {
     try {
       const res = await fetchWithAuth(`/api/shift-assignments/staff/${selectedStaffId}?startDate=${start}&endDate=${end}`);
@@ -621,11 +653,34 @@ export default function MemberPage() {
       const monthEnd = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0);
       const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
       await loadShiftRequests(monthStart, monthEndStr);
+      await loadSubmittedShiftRequests();
       setCurrentView("calendar");
     } catch (e) {
       showMessage(e.message, "error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSubmitRequest(requestId) {
+    if (!window.confirm("この申請を提出しますか？")) return;
+
+    try {
+      const res = await fetchWithAuth(`/api/shift-requests/${requestId}/submit`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || "申請の提出に失敗しました。");
+      }
+      showMessage("申請を提出しました。", "success");
+      const monthStart = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}-01`;
+      const monthEnd = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0);
+      const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
+      await loadShiftRequests(monthStart, monthEndStr);
+      await loadSubmittedShiftRequests();
+    } catch (e) {
+      showMessage(e.message, "error");
     }
   }
 
@@ -645,6 +700,7 @@ export default function MemberPage() {
       const monthEnd = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0);
       const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
       await loadShiftRequests(monthStart, monthEndStr);
+      await loadSubmittedShiftRequests();
     } catch (e) {
       showMessage(e.message, "error");
     }
@@ -720,8 +776,10 @@ export default function MemberPage() {
             loading={loading}
             message={message}
             messageType={messageType}
-            shiftRequests={shiftRequests}
+            shiftRequests={submittedShiftRequests}
             onDeleteRequest={handleDeleteRequest}
+            onSubmitRequest={handleSubmitRequest}
+
             permissionRequests={permissionRequests}
             onApprovePermission={(permissionId) => handlePermissionAction(permissionId, "approve")}
             onRejectPermission={(permissionId) => handlePermissionAction(permissionId, "reject")}
