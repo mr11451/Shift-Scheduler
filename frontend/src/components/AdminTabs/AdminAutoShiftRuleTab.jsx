@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 
 const RULE_SETTING_KEY = "autoShiftGenerationRules";
+const DEFAULT_SCOPE = "__default__";
 
 const DEFAULT_RULES = {
   requiredCounts: {},
@@ -15,6 +16,10 @@ const DEFAULT_RULES = {
 
 export default function AdminAutoShiftRuleTab({ onCancel }) {
   const [shiftTypes, setShiftTypes] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [selectedScope, setSelectedScope] = useState(DEFAULT_SCOPE);
+  const [defaultRules, setDefaultRules] = useState(DEFAULT_RULES);
+  const [groupRules, setGroupRules] = useState({});
   const [rules, setRules] = useState(DEFAULT_RULES);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
@@ -44,8 +49,9 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
   async function loadData() {
     try {
       setLoading(true);
-      const [shiftTypeRes, settingRes] = await Promise.all([
+      const [shiftTypeRes, groupRes, settingRes] = await Promise.all([
         authFetchNoRedirect("/api/shift-types?active=true"),
+        authFetchNoRedirect("/api/groups"),
         authFetchNoRedirect("/api/system-settings"),
       ]);
 
@@ -54,28 +60,50 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
         setShiftTypes(Array.isArray(types) ? types : []);
       }
 
-      let parsedRules = { ...DEFAULT_RULES };
+      let loadedGroups = [];
+      if (groupRes.ok) {
+        const data = await groupRes.json();
+        loadedGroups = Array.isArray(data) ? data.filter((group) => group?.isActive !== false) : [];
+      }
+      setGroups(loadedGroups);
+
+      let loadedDefaultRules = { ...DEFAULT_RULES };
+      let loadedGroupRules = {};
       if (settingRes.ok) {
         const data = await settingRes.json();
         const setting = (Array.isArray(data) ? data : []).find((item) => item.settingKey === RULE_SETTING_KEY);
         if (setting?.settingValueText) {
           try {
             const parsed = JSON.parse(setting.settingValueText);
-            parsedRules = {
-              ...parsedRules,
-              ...parsed,
-              requiredCounts: {
-                ...parsedRules.requiredCounts,
-                ...(parsed.requiredCounts || {}),
-              },
-            };
+            const hasGroupedFormat = parsed && typeof parsed === "object" && (parsed.defaultRules || parsed.groupRules);
+
+            if (hasGroupedFormat) {
+              loadedDefaultRules = normalizeRules(parsed.defaultRules || {});
+              const nextGroupRules = {};
+              if (parsed.groupRules && typeof parsed.groupRules === "object") {
+                Object.entries(parsed.groupRules).forEach(([groupId, groupRule]) => {
+                  nextGroupRules[groupId] = normalizeRules(groupRule || {});
+                });
+              }
+              loadedGroupRules = nextGroupRules;
+            } else {
+              loadedDefaultRules = normalizeRules(parsed || {});
+            }
           } catch {
             // Keep defaults if the saved value is invalid.
           }
         }
       }
 
-      setRules(parsedRules);
+      setDefaultRules(loadedDefaultRules);
+      setGroupRules(loadedGroupRules);
+
+      const nextSelectedScope = selectedScope !== DEFAULT_SCOPE
+        && loadedGroups.some((group) => String(group.id) === String(selectedScope))
+          ? selectedScope
+          : DEFAULT_SCOPE;
+      setSelectedScope(nextSelectedScope);
+      setRules(nextSelectedScope === DEFAULT_SCOPE ? loadedDefaultRules : (loadedGroupRules[String(nextSelectedScope)] || loadedDefaultRules));
       setMessage("");
       setMessageType("");
     } catch (e) {
@@ -86,22 +114,71 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
     }
   }
 
-  function handleChange(e) {
-    const { name, value } = e.target;
-    setRules((prev) => ({
+  function normalizeRules(source) {
+    return {
+      ...DEFAULT_RULES,
+      ...(source || {}),
+      requiredCounts: {
+        ...DEFAULT_RULES.requiredCounts,
+        ...((source && source.requiredCounts) || {}),
+      },
+    };
+  }
+
+  function updateActiveRules(nextRules) {
+    const normalized = normalizeRules(nextRules);
+    setRules(normalized);
+    if (selectedScope === DEFAULT_SCOPE) {
+      setDefaultRules(normalized);
+      return;
+    }
+    setGroupRules((prev) => ({
       ...prev,
-      [name]: value,
+      [String(selectedScope)]: normalized,
     }));
   }
 
+  function buildPayloadRules() {
+    const nextDefaultRules = selectedScope === DEFAULT_SCOPE ? rules : defaultRules;
+    const nextGroupRules = { ...groupRules };
+
+    if (selectedScope !== DEFAULT_SCOPE) {
+      nextGroupRules[String(selectedScope)] = rules;
+    }
+
+    return {
+      defaultRules: nextDefaultRules,
+      groupRules: nextGroupRules,
+    };
+  }
+
+  function handleScopeChange(e) {
+    const nextScope = e.target.value;
+    setSelectedScope(nextScope);
+    if (nextScope === DEFAULT_SCOPE) {
+      setRules(defaultRules);
+      return;
+    }
+
+    setRules(groupRules[nextScope] || defaultRules);
+  }
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    updateActiveRules({
+      ...rules,
+      [name]: value,
+    });
+  }
+
   function handleRequiredCountChange(shiftTypeId, value) {
-    setRules((prev) => ({
+    updateActiveRules({
       ...prev,
       requiredCounts: {
-        ...prev.requiredCounts,
+        ...rules.requiredCounts,
         [shiftTypeId]: value,
       },
-    }));
+    });
   }
 
   function validateRules(nextRules) {
@@ -136,7 +213,12 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
     setMessage("");
     setMessageType("");
 
-    const warnings = validateRules(rules);
+    const payloadRules = buildPayloadRules();
+    const activeRules = selectedScope === DEFAULT_SCOPE
+      ? payloadRules.defaultRules
+      : (payloadRules.groupRules[String(selectedScope)] || payloadRules.defaultRules);
+
+    const warnings = validateRules(activeRules);
     if (warnings.length > 0 && !allowWarnings) {
       setMessage(warnings.join("\n"));
       setMessageType("error");
@@ -146,7 +228,7 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
 
     try {
       const res = await authFetchNoRedirect(
-        `/api/system-settings/${RULE_SETTING_KEY}/text?value=${encodeURIComponent(JSON.stringify(rules))}`,
+        `/api/system-settings/${RULE_SETTING_KEY}/text?value=${encodeURIComponent(JSON.stringify(payloadRules))}`,
         { method: "PUT" }
       );
 
@@ -180,7 +262,7 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
     <div className="card">
       <h2>自動生成ルール</h2>
       <p style={{ color: "#6b7280", marginTop: "-0.25rem" }}>
-        自動シフト生成に使う基本ルールを管理します。ここで設定した内容は、シフト編集画面の生成条件に反映されます。
+        自動シフト生成に使う基本ルールを管理します。デフォルトルールに加えて、グループ別ルールも設定できます。
       </p>
 
       {message && (
@@ -207,6 +289,28 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
         <p>読み込み中...</p>
       ) : (
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1.5rem" }}>
+          <div style={{ borderBottom: "1px solid var(--line)", paddingBottom: "1.25rem" }}>
+            <h3 style={{ marginTop: 0, marginBottom: "0.75rem" }}>設定対象</h3>
+            <label style={{ display: "grid", gap: "0.25rem", maxWidth: "320px" }}>
+              <span style={{ fontWeight: 600 }}>ルール適用先</span>
+              <select
+                value={selectedScope}
+                onChange={handleScopeChange}
+                style={{ width: "fit-content", minWidth: 0, display: "inline-block", padding: "0.6rem", border: "1px solid var(--line)", borderRadius: "4px" }}
+              >
+                <option value={DEFAULT_SCOPE}>デフォルト（全体）</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={String(group.id)}>
+                    グループ: {group.groupName}
+                  </option>
+                ))}
+              </select>
+              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>
+                グループ別ルールが未設定の場合は、デフォルトルールが適用されます。
+              </span>
+            </label>
+          </div>
+
           <div style={{ background: "#f9fafb", border: "1px solid var(--line)", borderRadius: "8px", padding: "1rem" }}>
             <h3 style={{ marginTop: 0, marginBottom: "0.5rem" }}>ルールの意味</h3>
             <ul style={{ margin: 0, paddingLeft: "1.2rem", lineHeight: 1.6 }}>

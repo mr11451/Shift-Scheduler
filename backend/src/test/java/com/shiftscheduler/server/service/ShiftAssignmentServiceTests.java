@@ -20,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,6 +30,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shiftscheduler.server.api.AutoShiftGenerationResultResponse;
+import com.shiftscheduler.server.domain.Group;
 import com.shiftscheduler.server.domain.RoleLevel;
 import com.shiftscheduler.server.domain.ShiftAssignment;
 import com.shiftscheduler.server.domain.ShiftRequest;
@@ -215,6 +217,60 @@ class ShiftAssignmentServiceTests {
 
         assertTrue(result.getGeneratedCount() > 0);
         verify(shiftAssignmentRepository).deleteByStaffIdInAndWorkDateBetween(any(), any(), any());
+    }
+
+    @Test
+    void autoGenerateShiftAssignments_appliesGroupRulesIndependently() throws Exception {
+        Staff editor = new Staff();
+        editor.setId(1L);
+        editor.setStaffCode("STF-00001");
+        editor.setStaffName("管理者");
+        editor.setRoleLevel(RoleLevel.MASTER);
+        editor.setIsActive(true);
+
+        Group groupA = new Group();
+        groupA.setId(10L);
+        groupA.setGroupCode("G-A");
+        groupA.setGroupName("A");
+
+        Group groupB = new Group();
+        groupB.setId(20L);
+        groupB.setGroupCode("G-B");
+        groupB.setGroupName("B");
+
+        Staff staffA = createStaff(2L, "STF-00002", null);
+        staffA.setGroup(groupA);
+        Staff staffB = createStaff(3L, "STF-00003", null);
+        staffB.setGroup(groupB);
+
+        ShiftType workShift = new ShiftType();
+        workShift.setId(10L);
+        workShift.setShiftCode("A");
+        workShift.setShiftName("早番");
+        workShift.setStartTime(LocalTime.of(9, 0));
+        workShift.setEndTime(LocalTime.of(18, 0));
+        workShift.setIsActive(true);
+
+        when(staffRepository.findById(1L)).thenReturn(Optional.of(editor));
+        when(staffRepository.findAllByIsActiveTrue()).thenReturn(List.of(editor, staffA, staffB));
+        when(accessControlService.canEditShift(any(Staff.class), any(Staff.class))).thenReturn(true);
+        when(shiftTypeRepository.findAllActiveWorkShifts()).thenReturn(List.of(workShift));
+        when(shiftAssignmentRepository.findByStaffIdInAndWorkDateBetween(any(), any(), any())).thenReturn(List.of());
+        when(shiftRequestRepository.findByStaffIdInAndWorkDateBetween(any(), any(), any())).thenReturn(List.of());
+        when(systemSettingService.isMonthConfirmed(2026, 8)).thenReturn(false);
+        when(systemSettingService.getSystemSettingTextValue("autoShiftGenerationRules")).thenReturn(
+                "{\"defaultRules\":{\"requiredCounts\":{\"10\":0},\"monthlyMaxWorkdaysMode\":\"FIXED\",\"monthlyMaxWorkdays\":40,\"maxConsecutiveWorkdays\":40,\"minimumRestDays\":0,\"desiredShiftMode\":\"IGNORE\",\"existingShiftHandling\":\"ONLY_EMPTY\"},\"groupRules\":{\"10\":{\"requiredCounts\":{\"10\":1}}}}"
+        );
+
+        AutoShiftGenerationResultResponse result = shiftAssignmentService.autoGenerateShiftAssignments(1L, 2026, 8);
+
+        assertEquals(31, result.getGeneratedCount());
+
+        ArgumentCaptor<List<ShiftAssignment>> captor = ArgumentCaptor.forClass(List.class);
+        verify(shiftAssignmentRepository, atLeastOnce()).saveAll(captor.capture());
+        List<ShiftAssignment> generated = captor.getAllValues().stream().flatMap(List::stream).toList();
+        assertFalse(generated.isEmpty());
+        assertTrue(generated.stream().allMatch(assignment -> assignment.getStaff().getId().equals(2L)));
     }
 
     @Test

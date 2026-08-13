@@ -27,6 +27,7 @@ export default function AdminShiftEditTab() {
   const [holidayDates, setHolidayDates] = useState([]);
   const [holidayWeekdays, setHolidayWeekdays] = useState([]);
   const [requiredCounts, setRequiredCounts] = useState({});
+  const [requiredCountsByGroup, setRequiredCountsByGroup] = useState({});
   const [maxConsecutiveWorkdays, setMaxConsecutiveWorkdays] = useState(0);
   const [minimumShiftGapHours, setMinimumShiftGapHours] = useState(0);
   const [isCurrentMonthConfirmed, setIsCurrentMonthConfirmed] = useState(false);
@@ -121,7 +122,8 @@ export default function AdminShiftEditTab() {
   function groupStaffs(staffs) {
     const groups = {};
     staffs.forEach((staff) => {
-      const groupName = staff.groupId ? `グループ ${staff.groupId}` : "未分類";
+      const groupName = (staff.groupName && String(staff.groupName).trim())
+        || (staff.groupId ? `グループ ${staff.groupId}` : "未分類");
       if (!groups[groupName]) groups[groupName] = [];
       groups[groupName].push(staff);
     });
@@ -197,31 +199,56 @@ export default function AdminShiftEditTab() {
       let parsedGapHours = 0;
       let parsedMaxConsecutiveWorkdays = 0;
       let parsedRequiredCounts = {};
+      let parsedRequiredCountsByGroup = {};
       try {
-        const parsedRules = JSON.parse(autoShiftRuleSetting?.settingValueText || "{}");
+        const parsedRoot = JSON.parse(autoShiftRuleSetting?.settingValueText || "{}");
+        const hasGroupedRules = parsedRoot && typeof parsedRoot === "object" && (parsedRoot.defaultRules || parsedRoot.groupRules);
+        const parsedRules = hasGroupedRules ? (parsedRoot.defaultRules || {}) : parsedRoot;
         const ruleGap = Number(parsedRules?.minimumShiftGapHours ?? 0);
         const ruleMaxConsecutive = Number(parsedRules?.maxConsecutiveWorkdays ?? 0);
         parsedRequiredCounts = parsedRules?.requiredCounts && typeof parsedRules.requiredCounts === "object" ? parsedRules.requiredCounts : {};
+        if (hasGroupedRules && parsedRoot.groupRules && typeof parsedRoot.groupRules === "object") {
+          Object.entries(parsedRoot.groupRules).forEach(([groupId, groupRule]) => {
+            const groupRequiredCounts = groupRule?.requiredCounts;
+            if (groupRequiredCounts && typeof groupRequiredCounts === "object") {
+              parsedRequiredCountsByGroup[groupId] = groupRequiredCounts;
+            }
+          });
+        }
         parsedGapHours = Number.isFinite(ruleGap) ? Math.max(0, ruleGap) : 0;
         parsedMaxConsecutiveWorkdays = Number.isFinite(ruleMaxConsecutive) ? Math.max(0, ruleMaxConsecutive) : 0;
       } catch (error) {
         parsedGapHours = 0;
         parsedMaxConsecutiveWorkdays = 0;
         parsedRequiredCounts = {};
+        parsedRequiredCountsByGroup = {};
       }
       setMinimumShiftGapHours(parsedGapHours);
       setMaxConsecutiveWorkdays(parsedMaxConsecutiveWorkdays);
       setRequiredCounts(parsedRequiredCounts);
+      setRequiredCountsByGroup(parsedRequiredCountsByGroup);
     } catch (e) {
       setHolidayDates([]);
       setHolidayWeekdays([]);
       setRequiredCounts({});
+      setRequiredCountsByGroup({});
       setMinimumShiftGapHours(0);
       setMaxConsecutiveWorkdays(0);
     }
   }
 
-  const dailyShiftCounts = useMemo(() => {
+  const staffGroupKeyByStaffId = useMemo(() => {
+    const groupMap = {};
+    staffsByGroup.forEach((group) => {
+      group.staffs.forEach((staff) => {
+        const key = String(staff.id);
+        groupMap[key] = staff.groupId != null ? String(staff.groupId) : "__ungrouped__";
+      });
+    });
+    return groupMap;
+  }, [staffsByGroup]);
+
+  const dailyShiftCountsByGroup = useMemo(() => {
     const counts = {};
 
     Object.values(shiftAssignments).forEach((assignment) => {
@@ -229,20 +256,36 @@ export default function AdminShiftEditTab() {
         return;
       }
 
+      const groupKey = staffGroupKeyByStaffId[String(assignment.staffId)] || "__ungrouped__";
       const dateKey = assignment.workDate;
       const shiftTypeId = String(assignment.shiftTypeId);
-      if (!counts[dateKey]) {
-        counts[dateKey] = {};
+      if (!counts[groupKey]) {
+        counts[groupKey] = {};
       }
-      counts[dateKey][shiftTypeId] = (counts[dateKey][shiftTypeId] || 0) + 1;
+      if (!counts[groupKey][dateKey]) {
+        counts[groupKey][dateKey] = {};
+      }
+      counts[groupKey][dateKey][shiftTypeId] = (counts[groupKey][dateKey][shiftTypeId] || 0) + 1;
     });
 
     return counts;
-  }, [shiftAssignments]);
+  }, [shiftAssignments, staffGroupKeyByStaffId]);
 
-  function isRequiredCountShortageDate(dateStr) {
-    const countsByShiftType = dailyShiftCounts?.[dateStr] || {};
-    return Object.entries(requiredCounts).some(([shiftTypeId, requiredCountValue]) => {
+  function getRequiredCountsForStaff(staffId) {
+    const groupKey = staffGroupKeyByStaffId[String(staffId)] || "__ungrouped__";
+    const groupRequired = requiredCountsByGroup[groupKey];
+    if (groupRequired && typeof groupRequired === "object") {
+      return groupRequired;
+    }
+    return requiredCounts;
+  }
+
+  function isRequiredCountShortageDateForStaff(dateStr, staffId) {
+    const groupKey = staffGroupKeyByStaffId[String(staffId)] || "__ungrouped__";
+    const countsByShiftType = dailyShiftCountsByGroup?.[groupKey]?.[dateStr] || {};
+    const targetRequiredCounts = getRequiredCountsForStaff(staffId);
+
+    return Object.entries(targetRequiredCounts).some(([shiftTypeId, requiredCountValue]) => {
       const requiredCount = Number(requiredCountValue);
       if (!Number.isFinite(requiredCount) || requiredCount <= 0) {
         return false;
@@ -1172,7 +1215,7 @@ export default function AdminShiftEditTab() {
                     const isNgBandViolation = isStaffInNgShiftBand(staff, currentShiftTypeId, day);
                     const isShiftGapViolation = isMinimumShiftGapViolation(staff.id, day, currentShiftTypeId);
                     const isConsecutiveViolation = isConsecutiveWorkdaysViolation(staff.id, day, currentShiftTypeId);
-                    const isRequiredCountShortageCell = isRequiredCountShortageDate(dateStr);
+                    const isRequiredCountShortageCell = isRequiredCountShortageDateForStaff(dateStr, staff.id);
                     const shouldHighlightRed = isMismatch || isNgBandViolation || isShiftGapViolation || isConsecutiveViolation || isRequiredCountShortageCell;
 
                     if (isActive) {

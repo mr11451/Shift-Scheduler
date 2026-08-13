@@ -16,23 +16,39 @@
 - システム設定キー: `autoShiftGenerationRules`
 - 保存形式: JSON（`system_settings.setting_value_text`）
 
-### JSON例
+### JSON例（デフォルト + グループ別）
 
 ```json
 {
-  "requiredCounts": {
-    "10": 1,
-    "20": 2
+  "defaultRules": {
+    "requiredCounts": {
+      "10": 1,
+      "20": 2
+    },
+    "monthlyMaxWorkdaysMode": "FIXED",
+    "monthlyMaxWorkdays": 20,
+    "maxConsecutiveWorkdays": 6,
+    "minimumRestDays": 1,
+    "minimumShiftGapHours": 8,
+    "desiredShiftMode": "PRIORITY",
+    "existingShiftHandling": "ONLY_EMPTY"
   },
-  "monthlyMaxWorkdaysMode": "FIXED",
-  "monthlyMaxWorkdays": 20,
-  "maxConsecutiveWorkdays": 6,
-  "minimumRestDays": 1,
-  "minimumShiftGapHours": 8,
-  "desiredShiftMode": "PRIORITY",
-  "existingShiftHandling": "ONLY_EMPTY"
+  "groupRules": {
+    "10": {
+      "requiredCounts": {
+        "10": 2
+      },
+      "monthlyMaxWorkdays": 18
+    }
+  }
 }
 ```
+
+補足:
+
+- `defaultRules` が全体の基準値です。
+- `groupRules.{groupId}` が存在する場合、そのグループだけ上書きされます。
+- 従来形式（ルート直下にルール項目を持つJSON）も読み取り可能です。
 
 ## ルール項目
 
@@ -71,28 +87,34 @@
 - 月の範囲チェック（1-12）
 - 月確定チェック
 - 編集可能スタッフ抽出
+- スタッフをグループ単位に分割
 - 有効な勤務シフト種類取得
 
-2. 初期状態ロード
+2. 初期状態ロード（グループごと）
 - 既存割当
 - スタッフ別勤務日集合
 - 月次勤務回数
 - 日次シフト人数
 
-3. 既存シフトの扱い
+3. 既存シフトの扱い（グループごと）
 - `existingShiftHandling=OVERWRITE` の場合、対象月の既存割当を削除して再読込
 
-4. 申請の先行割当（`desiredShiftMode=REQUIRED` のときのみ）
+4. 申請の先行割当（`desiredShiftMode=REQUIRED` のときのみ、グループごと）
 - 申請シフトを先に埋める
 - 埋められなかった件数は `unassignedRequiredCount` に加算
 
-5. 必要人数充足
+5. 必要人数充足（グループごと）
 - 日付ごとに、必要人数が多いシフトから割当
 - 候補がいない場合は不足条件に記録
 
-6. リトライ
+6. リトライ（グループごと）
 - 生成結果が不足ありの場合、最大回数まで再試行
 - 最良結果（不足が少ない結果）を採用
+
+補足:
+
+- グループ間でスタッフは共有しません。
+- 他グループの不足を別グループのスタッフで埋めることはしません。
 
 ## 制約判定（候補スタッフ選定時）
 

@@ -517,6 +517,84 @@
 				"test"
 			],
 			"isBackground": false
+		},
+		{
+			"label": "Test Group Rule Auto Generation",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
+				"./mvnw",
+				"-Dtest=ShiftAssignmentServiceTests",
+				"test"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Build Frontend After Group Rules UI",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
+				"npm",
+				"run",
+				"build"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Retest Group Independent Generation",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
+				"./mvnw",
+				"-Dtest=ShiftAssignmentServiceTests",
+				"test"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Final Backend Regression After Group Rule Changes",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
+				"./mvnw",
+				"-Dtest=ShiftAssignmentServiceTests",
+				"test"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Build Frontend After Group Name Fix",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
+				"npm",
+				"run",
+				"build"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Build Frontend After Group-Based Required Count Eval",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/frontend",
+				"npm",
+				"run",
+				"build"
+			],
+			"isBackground": false
 		}
 	]
 }

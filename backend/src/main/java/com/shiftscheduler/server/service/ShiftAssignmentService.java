@@ -257,6 +257,7 @@ public class ShiftAssignmentService {
 
   private static class AutoGenContext {
     Staff editor;
+    Long groupId;
     YearMonth targetMonth;
     LocalDate startDate;
     LocalDate endDate;
@@ -293,54 +294,94 @@ public class ShiftAssignmentService {
       throw new IllegalArgumentException("指定月は確定済みのため自動生成できません。");
     }
 
-    AutoGenContext ctx = buildContext(editorStaffId, year, month);
-    ExistingState state = loadExistingState(ctx);
+    List<AutoGenContext> contexts = buildContexts(editorStaffId, year, month);
 
-    if ("OVERWRITE".equalsIgnoreCase(ctx.rules.existingShiftHandling)) {
-      List<Long> editableStaffIds = ctx.editableStaffs.stream().map(Staff::getId).toList();
-      if (!editableStaffIds.isEmpty()) {
-        shiftAssignmentRepository.deleteByStaffIdInAndWorkDateBetween(editableStaffIds, ctx.startDate, ctx.endDate);
-      }
-      state = loadExistingState(ctx);
+    if (contexts.isEmpty()) {
+      throw new IllegalArgumentException("自動生成対象のスタッフが存在しません。");
     }
 
-    if (ctx.activeWorkShiftTypes.isEmpty()) {
-      throw new IllegalArgumentException("有効な勤務シフト種類が存在しません。");
-    }
+    int totalTargetStaffCount = 0;
+    int totalConsideredRequestCount = 0;
+    int totalGeneratedCount = 0;
+    int totalUnassignedRequiredCount = 0;
+    int totalRetryCount = 0;
+    List<AutoShiftGenerationResultResponse.UnmetCondition> allUnmetConditions = new ArrayList<>();
 
-    int totalRequiredPerDay = calculateTotalRequiredPerDay(ctx.rules);
-    if (ctx.editableStaffs.size() > 1 && totalRequiredPerDay > ctx.editableStaffs.size()) {
-      throw new IllegalArgumentException("1日あたり必要人数の合計が対象スタッフ数を超えているため、自動生成できません。必要人数を減らしてください。");
-    }
+    for (AutoGenContext ctx : contexts) {
+      ExistingState state = loadExistingState(ctx);
 
-    GenerationAttemptResult bestAttempt = null;
-    int attemptsPerformed = 0;
-
-    for (int attempt = 0; attempt <= MAX_AUTO_GENERATION_RETRIES; attempt++) {
-      attemptsPerformed = attempt + 1;
-
-      GenerationAttemptResult attemptResult = runGenerationAttempt(ctx, state);
-
-      if (bestAttempt == null || isBetterAttempt(attemptResult, bestAttempt)) {
-        bestAttempt = attemptResult;
+      if ("OVERWRITE".equalsIgnoreCase(ctx.rules.existingShiftHandling)) {
+        List<Long> editableStaffIds = ctx.editableStaffs.stream().map(Staff::getId).toList();
+        if (!editableStaffIds.isEmpty()) {
+          shiftAssignmentRepository.deleteByStaffIdInAndWorkDateBetween(editableStaffIds, ctx.startDate, ctx.endDate);
+        }
+        state = loadExistingState(ctx);
       }
 
-      if (attemptResult.unassignedRequiredCount == 0 && attemptResult.unmetConditions.isEmpty()) {
-        break;
+      if (ctx.activeWorkShiftTypes.isEmpty()) {
+        throw new IllegalArgumentException("有効な勤務シフト種類が存在しません。");
+      }
+
+      int totalRequiredPerDay = calculateTotalRequiredPerDay(ctx.rules);
+      if (ctx.editableStaffs.size() > 1 && totalRequiredPerDay > ctx.editableStaffs.size()) {
+        String groupLabel = ctx.groupId == null ? "未分類" : "グループ " + ctx.groupId;
+        throw new IllegalArgumentException(groupLabel + " の1日あたり必要人数の合計が対象スタッフ数を超えているため、自動生成できません。必要人数を減らしてください。");
+      }
+
+      GenerationAttemptResult bestAttempt = null;
+      int attemptsPerformed = 0;
+
+      for (int attempt = 0; attempt <= MAX_AUTO_GENERATION_RETRIES; attempt++) {
+        attemptsPerformed = attempt + 1;
+
+        GenerationAttemptResult attemptResult = runGenerationAttempt(ctx, state);
+
+        if (bestAttempt == null || isBetterAttempt(attemptResult, bestAttempt)) {
+          bestAttempt = attemptResult;
+        }
+
+        if (attemptResult.unassignedRequiredCount == 0 && attemptResult.unmetConditions.isEmpty()) {
+          break;
+        }
+      }
+
+      if (bestAttempt != null && !bestAttempt.generatedAssignments.isEmpty()) {
+        List<ShiftAssignment> savedAssignments = shiftAssignmentRepository.saveAll(bestAttempt.generatedAssignments);
+        if (savedAssignments != null && !savedAssignments.isEmpty()) {
+          bestAttempt.generatedAssignments = savedAssignments;
+        }
+      }
+
+      totalTargetStaffCount += ctx.editableStaffs.size();
+      totalConsideredRequestCount += ctx.requests.size();
+      totalGeneratedCount += bestAttempt != null ? bestAttempt.generatedAssignments.size() : 0;
+      totalUnassignedRequiredCount += bestAttempt != null ? bestAttempt.unassignedRequiredCount : 0;
+      totalRetryCount += Math.max(0, attemptsPerformed - 1);
+
+      if (bestAttempt != null && bestAttempt.unmetConditions != null) {
+        allUnmetConditions.addAll(bestAttempt.unmetConditions);
+        totalUnassignedRequiredCount += bestAttempt.totalShortageCount();
       }
     }
 
-    if (bestAttempt != null && !bestAttempt.generatedAssignments.isEmpty()) {
-      List<ShiftAssignment> savedAssignments = shiftAssignmentRepository.saveAll(bestAttempt.generatedAssignments);
-      if (savedAssignments != null && !savedAssignments.isEmpty()) {
-        bestAttempt.generatedAssignments = savedAssignments;
-      }
-    }
+    AutoShiftGenerationResultResponse response = new AutoShiftGenerationResultResponse();
+    AutoGenContext first = contexts.get(0);
+    response.setYear(first.targetMonth.getYear());
+    response.setMonth(first.targetMonth.getMonthValue());
+    response.setStartDate(first.startDate);
+    response.setEndDate(first.endDate);
+    response.setTargetStaffCount(totalTargetStaffCount);
+    response.setSkippedHolidayCount(0);
+    response.setConsideredRequestCount(totalConsideredRequestCount);
+    response.setGeneratedCount(totalGeneratedCount);
+    response.setUnassignedRequiredCount(totalUnassignedRequiredCount);
+    response.setRetryCount(totalRetryCount);
+    response.setUnmetConditions(allUnmetConditions);
 
-    return buildResponse(ctx, bestAttempt, attemptsPerformed);
+    return response;
   }
 
-  private AutoGenContext buildContext(Long editorStaffId, int year, int month) {
+  private List<AutoGenContext> buildContexts(Long editorStaffId, int year, int month) {
     Staff editor = staffRepository.findById(editorStaffId)
         .orElseThrow(() -> new IllegalArgumentException("編集者スタッフが見つかりません。"));
 
@@ -348,8 +389,7 @@ public class ShiftAssignmentService {
     LocalDate startDate = targetMonth.atDay(1);
     LocalDate endDate = targetMonth.atEndOfMonth();
 
-    AutoShiftGenerationRules rules =
-        parseRules(systemSettingService.getSystemSettingTextValue("autoShiftGenerationRules"));
+    String rulesJson = systemSettingService.getSystemSettingTextValue("autoShiftGenerationRules");
 
     List<Staff> editableStaffs = staffRepository.findAllByIsActiveTrue().stream()
         .filter(staff -> accessControlService.canEditShift(editor, staff))
@@ -357,54 +397,73 @@ public class ShiftAssignmentService {
         .collect(Collectors.toList());
 
     if (editableStaffs.isEmpty()) {
-      throw new IllegalArgumentException("自動生成対象のスタッフが存在しません。");
+      return List.of();
+    }
+
+    Map<Long, List<Staff>> staffsByGroupId = new HashMap<>();
+    for (Staff staff : editableStaffs) {
+      Long groupId = staff.getGroup() != null ? staff.getGroup().getId() : null;
+      staffsByGroupId.computeIfAbsent(groupId, unused -> new ArrayList<>()).add(staff);
     }
 
     List<ShiftType> activeWorkShiftTypes = shiftTypeRepository.findAllActiveWorkShifts();
 
-    Map<Long, Staff> staffById =
-        editableStaffs.stream().collect(Collectors.toMap(Staff::getId, Function.identity()));
+    List<AutoGenContext> contexts = new ArrayList<>();
 
-    Map<Long, ShiftType> shiftTypeById =
+    for (Map.Entry<Long, List<Staff>> entry : staffsByGroupId.entrySet()) {
+      Long groupId = entry.getKey();
+      List<Staff> groupStaffs = entry.getValue();
+
+      AutoShiftGenerationRules rules = parseRulesForGroup(rulesJson, groupId);
+
+      Map<Long, Staff> staffById =
+        groupStaffs.stream().collect(Collectors.toMap(Staff::getId, Function.identity()));
+
+      Map<Long, ShiftType> shiftTypeById =
         activeWorkShiftTypes.stream().collect(Collectors.toMap(ShiftType::getId, Function.identity()));
 
-    Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId = editableStaffs.stream()
+      Map<Long, Set<Long>> blockedShiftTypeIdsByStaffId = groupStaffs.stream()
         .collect(Collectors.toMap(Staff::getId, staff -> parseBlockedShiftTypeIds(staff.getNgShiftTypeIds())));
-    Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId = editableStaffs.stream()
-      .collect(Collectors.toMap(Staff::getId, staff -> parseShiftPreferenceWeekdayIds(staff.getNgShiftTypeIds())));
-    Map<Long, Set<Long>> preferredShiftTypeIdsByStaffId = editableStaffs.stream()
-      .collect(Collectors.toMap(Staff::getId, staff -> parseBlockedShiftTypeIds(staff.getPreferredShiftTypeIds())));
-    Map<Long, Set<Integer>> preferredShiftWeekdayIdsByStaffId = editableStaffs.stream()
-      .collect(Collectors.toMap(Staff::getId, staff -> parseShiftPreferenceWeekdayIds(staff.getPreferredShiftTypeIds())));
+      Map<Long, Set<Integer>> blockedShiftWeekdayIdsByStaffId = groupStaffs.stream()
+        .collect(Collectors.toMap(Staff::getId, staff -> parseShiftPreferenceWeekdayIds(staff.getNgShiftTypeIds())));
+      Map<Long, Set<Long>> preferredShiftTypeIdsByStaffId = groupStaffs.stream()
+        .collect(Collectors.toMap(Staff::getId, staff -> parseBlockedShiftTypeIds(staff.getPreferredShiftTypeIds())));
+      Map<Long, Set<Integer>> preferredShiftWeekdayIdsByStaffId = groupStaffs.stream()
+        .collect(Collectors.toMap(Staff::getId, staff -> parseShiftPreferenceWeekdayIds(staff.getPreferredShiftTypeIds())));
 
-    List<Long> staffIds = editableStaffs.stream().map(Staff::getId).toList();
+      List<Long> staffIds = groupStaffs.stream().map(Staff::getId).toList();
 
-    List<ShiftRequest> requests = shiftRequestRepository
+      List<ShiftRequest> requests = shiftRequestRepository
         .findByStaffIdInAndWorkDateBetween(staffIds, startDate, endDate).stream()
         .filter(r -> r.getStatus() != ShiftRequestStatus.REJECTED)
         .collect(Collectors.toList());
 
-    Map<String, ShiftRequest> requestByKey =
+      Map<String, ShiftRequest> requestByKey =
         requests.stream().collect(Collectors.toMap(this::requestKey, Function.identity(), (l, r) -> l));
 
-    AutoGenContext ctx = new AutoGenContext();
-    ctx.editor = editor;
-    ctx.targetMonth = targetMonth;
-    ctx.startDate = startDate;
-    ctx.endDate = endDate;
-    ctx.rules = rules;
-    ctx.editableStaffs = editableStaffs;
-    ctx.activeWorkShiftTypes = activeWorkShiftTypes;
-    ctx.staffById = staffById;
-    ctx.shiftTypeById = shiftTypeById;
-    ctx.blockedShiftTypeIdsByStaffId = blockedShiftTypeIdsByStaffId;
-    ctx.blockedShiftWeekdayIdsByStaffId = blockedShiftWeekdayIdsByStaffId;
-    ctx.preferredShiftTypeIdsByStaffId = preferredShiftTypeIdsByStaffId;
-    ctx.preferredShiftWeekdayIdsByStaffId = preferredShiftWeekdayIdsByStaffId;
-    ctx.requests = requests;
-    ctx.requestByKey = requestByKey;
+      AutoGenContext ctx = new AutoGenContext();
+      ctx.editor = editor;
+      ctx.groupId = groupId;
+      ctx.targetMonth = targetMonth;
+      ctx.startDate = startDate;
+      ctx.endDate = endDate;
+      ctx.rules = rules;
+      ctx.editableStaffs = groupStaffs;
+      ctx.activeWorkShiftTypes = activeWorkShiftTypes;
+      ctx.staffById = staffById;
+      ctx.shiftTypeById = shiftTypeById;
+      ctx.blockedShiftTypeIdsByStaffId = blockedShiftTypeIdsByStaffId;
+      ctx.blockedShiftWeekdayIdsByStaffId = blockedShiftWeekdayIdsByStaffId;
+      ctx.preferredShiftTypeIdsByStaffId = preferredShiftTypeIdsByStaffId;
+      ctx.preferredShiftWeekdayIdsByStaffId = preferredShiftWeekdayIdsByStaffId;
+      ctx.requests = requests;
+      ctx.requestByKey = requestByKey;
 
-    return ctx;
+      contexts.add(ctx);
+    }
+
+    contexts.sort(Comparator.comparing((AutoGenContext ctx) -> ctx.groupId, Comparator.nullsFirst(Long::compareTo)));
+    return contexts;
   }
 
   private ExistingState loadExistingState(AutoGenContext ctx) {
@@ -692,32 +751,6 @@ public class ShiftAssignmentService {
     return assignmentByKey.values().stream()
         .filter(a -> a.getId() == null)
         .collect(Collectors.toList());
-  }
-
-  private AutoShiftGenerationResultResponse buildResponse(
-      AutoGenContext ctx,
-      GenerationAttemptResult bestAttempt,
-      int attemptsPerformed
-  ) {
-    AutoShiftGenerationResultResponse response = new AutoShiftGenerationResultResponse();
-    response.setYear(ctx.targetMonth.getYear());
-    response.setMonth(ctx.targetMonth.getMonthValue());
-    response.setStartDate(ctx.startDate);
-    response.setEndDate(ctx.endDate);
-    response.setTargetStaffCount(ctx.editableStaffs.size());
-    response.setSkippedHolidayCount(0);
-    response.setConsideredRequestCount(ctx.requests.size());
-    response.setGeneratedCount(bestAttempt != null ? bestAttempt.generatedAssignments.size() : 0);
-    int shortageCount = 0;
-    if (bestAttempt != null && bestAttempt.unmetConditions != null) {
-      shortageCount = bestAttempt.unmetConditions.stream()
-          .mapToInt(AutoShiftGenerationResultResponse.UnmetCondition::getShortageCount)
-          .sum();
-    }
-    response.setUnassignedRequiredCount((bestAttempt != null ? bestAttempt.unassignedRequiredCount : 0) + shortageCount);
-    response.setRetryCount(Math.max(0, attemptsPerformed - 1));
-    response.setUnmetConditions(bestAttempt != null ? bestAttempt.unmetConditions : List.of());
-    return response;
   }
 
   private int calculateTotalRequiredPerDay(AutoShiftGenerationRules rules) {
@@ -1536,6 +1569,36 @@ public class ShiftAssignmentService {
 
   // ===== ルールパース（簡易版） =====
 
+  private AutoShiftGenerationRules parseRulesForGroup(String json, Long groupId) {
+    AutoShiftGenerationRules fallback = parseRules(json);
+    if (json == null || json.isBlank()) {
+      return fallback;
+    }
+
+    try {
+      ObjectMapper mapper = objectMapper != null ? objectMapper : new ObjectMapper();
+      JsonNode root = mapper.readTree(json);
+
+      JsonNode defaultRulesNode = root.path("defaultRules");
+      AutoShiftGenerationRules defaultRules = defaultRulesNode.isObject() ? parseRulesNode(defaultRulesNode) : fallback;
+
+      if (groupId == null) {
+        return defaultRules;
+      }
+
+      JsonNode groupRulesNode = root.path("groupRules").path(String.valueOf(groupId));
+      if (groupRulesNode.isObject()) {
+        AutoShiftGenerationRules merged = cloneRules(defaultRules);
+        applyRuleOverrides(merged, groupRulesNode);
+        return merged;
+      }
+
+      return defaultRules;
+    } catch (Exception e) {
+      return fallback;
+    }
+  }
+
   private AutoShiftGenerationRules parseRules(String json) {
     AutoShiftGenerationRules rules = new AutoShiftGenerationRules();
     if (json == null || json.isBlank()) {
@@ -1544,28 +1607,103 @@ public class ShiftAssignmentService {
     try {
       ObjectMapper mapper = objectMapper != null ? objectMapper : new ObjectMapper();
       JsonNode root = mapper.readTree(json);
-      rules.desiredShiftMode = root.path("desiredShiftMode").asText(null);
-      rules.existingShiftHandling = root.path("existingShiftHandling").asText(null);
-      rules.monthlyMaxWorkdaysMode = root.path("monthlyMaxWorkdaysMode").asText("FIXED");
-      rules.monthlyMaxWorkdays = root.path("monthlyMaxWorkdays").asInt(0);
-      rules.maxConsecutiveWorkdays = root.path("maxConsecutiveWorkdays").asInt(0);
-      rules.minimumRestDays = root.path("minimumRestDays").asInt(0);
-      rules.minimumShiftGapHours = root.path("minimumShiftGapHours").asInt(0);
 
-      JsonNode requiredNode = root.path("requiredCounts");
-      if (requiredNode.isObject()) {
-        Iterator<String> fieldNames = requiredNode.fieldNames();
-        while (fieldNames.hasNext()) {
-          String key = fieldNames.next();
-          long shiftTypeId = Long.parseLong(key);
-          int count = requiredNode.path(key).asInt(0);
-          rules.requiredCounts.put(shiftTypeId, count);
-        }
+      JsonNode defaultRulesNode = root.path("defaultRules");
+      if (defaultRulesNode.isObject()) {
+        return parseRulesNode(defaultRulesNode);
       }
+
+      rules = parseRulesNode(root);
     } catch (Exception e) {
       // ルールが壊れていても、とりあえずデフォルトで動くようにする
     }
     return rules;
+  }
+
+  private AutoShiftGenerationRules parseRulesNode(JsonNode root) {
+    AutoShiftGenerationRules rules = new AutoShiftGenerationRules();
+    if (root == null || !root.isObject()) {
+      return rules;
+    }
+
+    rules.desiredShiftMode = root.path("desiredShiftMode").asText(null);
+    rules.existingShiftHandling = root.path("existingShiftHandling").asText(null);
+    rules.monthlyMaxWorkdaysMode = root.path("monthlyMaxWorkdaysMode").asText("FIXED");
+    rules.monthlyMaxWorkdays = root.path("monthlyMaxWorkdays").asInt(0);
+    rules.maxConsecutiveWorkdays = root.path("maxConsecutiveWorkdays").asInt(0);
+    rules.minimumRestDays = root.path("minimumRestDays").asInt(0);
+    rules.minimumShiftGapHours = root.path("minimumShiftGapHours").asInt(0);
+
+    JsonNode requiredNode = root.path("requiredCounts");
+    if (requiredNode.isObject()) {
+      Iterator<String> fieldNames = requiredNode.fieldNames();
+      while (fieldNames.hasNext()) {
+        String key = fieldNames.next();
+        long shiftTypeId = Long.parseLong(key);
+        int count = requiredNode.path(key).asInt(0);
+        rules.requiredCounts.put(shiftTypeId, count);
+      }
+    }
+
+    return rules;
+  }
+
+  private AutoShiftGenerationRules cloneRules(AutoShiftGenerationRules base) {
+    AutoShiftGenerationRules clone = new AutoShiftGenerationRules();
+    if (base == null) {
+      return clone;
+    }
+
+    clone.desiredShiftMode = base.desiredShiftMode;
+    clone.existingShiftHandling = base.existingShiftHandling;
+    clone.monthlyMaxWorkdaysMode = base.monthlyMaxWorkdaysMode;
+    clone.monthlyMaxWorkdays = base.monthlyMaxWorkdays;
+    clone.maxConsecutiveWorkdays = base.maxConsecutiveWorkdays;
+    clone.minimumRestDays = base.minimumRestDays;
+    clone.minimumShiftGapHours = base.minimumShiftGapHours;
+    clone.requiredCounts = new HashMap<>(base.requiredCounts);
+
+    return clone;
+  }
+
+  private void applyRuleOverrides(AutoShiftGenerationRules target, JsonNode overrides) {
+    if (target == null || overrides == null || !overrides.isObject()) {
+      return;
+    }
+
+    if (overrides.has("desiredShiftMode")) {
+      target.desiredShiftMode = overrides.path("desiredShiftMode").asText(null);
+    }
+    if (overrides.has("existingShiftHandling")) {
+      target.existingShiftHandling = overrides.path("existingShiftHandling").asText(null);
+    }
+    if (overrides.has("monthlyMaxWorkdaysMode")) {
+      target.monthlyMaxWorkdaysMode = overrides.path("monthlyMaxWorkdaysMode").asText("FIXED");
+    }
+    if (overrides.has("monthlyMaxWorkdays")) {
+      target.monthlyMaxWorkdays = overrides.path("monthlyMaxWorkdays").asInt(0);
+    }
+    if (overrides.has("maxConsecutiveWorkdays")) {
+      target.maxConsecutiveWorkdays = overrides.path("maxConsecutiveWorkdays").asInt(0);
+    }
+    if (overrides.has("minimumRestDays")) {
+      target.minimumRestDays = overrides.path("minimumRestDays").asInt(0);
+    }
+    if (overrides.has("minimumShiftGapHours")) {
+      target.minimumShiftGapHours = overrides.path("minimumShiftGapHours").asInt(0);
+    }
+
+    JsonNode requiredNode = overrides.path("requiredCounts");
+    if (requiredNode.isObject()) {
+      target.requiredCounts.clear();
+      Iterator<String> fieldNames = requiredNode.fieldNames();
+      while (fieldNames.hasNext()) {
+        String key = fieldNames.next();
+        long shiftTypeId = Long.parseLong(key);
+        int count = requiredNode.path(key).asInt(0);
+        target.requiredCounts.put(shiftTypeId, count);
+      }
+    }
   }
 
   private Set<Long> parseBlockedShiftTypeIds(String input) {
