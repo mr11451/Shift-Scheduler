@@ -92,7 +92,7 @@ pwd
 開発・検証時の Docker 実行は、Windows の PowerShell / cmd ではなく、必ず WSL の Ubuntu ターミナルから行います。
 
 ```bash
-cd /mnt/c/Users/kiiji/source/repos/Shift-Scheduler
+cd {/path/to}/Shift-Scheduler
 docker compose up -d
 docker compose ps
 docker compose logs -f
@@ -107,7 +107,7 @@ VS Code から WSL 上の Spring Boot アプリをデバッグする場合は、
 ### 1. WSL でバックエンドを起動する
 
 ```bash
-cd /mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend
+cd {/path/to}/Shift-Scheduler/backend
 ./mvnw spring-boot:run \
   -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005" \
   -Dspring-boot.run.arguments="--spring.profiles.active=dev"
