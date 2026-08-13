@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,6 +14,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -631,12 +633,12 @@ public class ShiftAssignmentService {
         int required = Math.max(0, rules.requiredCounts.getOrDefault(shiftType.getId(), 0));
         if (required <= 0) continue;
 
-        if (hasVacationRequestsForDate(current, editableStaffs, requestByKey)) {
+        if (hasVacationRequestsForDate(currentDate, editableStaffs, requestByKey)) {
           continue;
         }
 
         int currentCount = dailyShiftCount
-            .getOrDefault(current, Map.of())
+            .getOrDefault(currentDate, Map.of())
             .getOrDefault(shiftType.getId(), 0);
 
         int retries = 0;
@@ -645,7 +647,7 @@ public class ShiftAssignmentService {
         while (currentCount < required && attempts < required * 20 + MAX_AUTO_GENERATION_RETRIES) {
           Long staffId = selectCandidateStaff(
               editableStaffs,
-              current,
+              currentDate,
               shiftType,
               assignmentByKey,
               monthlyWorkCount,
@@ -653,9 +655,9 @@ public class ShiftAssignmentService {
               rules,
               shiftTypeById,
               blockedShiftTypeIdsByStaffId,
-                blockedShiftWeekdayIdsByStaffId,
-                preferredShiftTypeIdsByStaffId,
-                preferredShiftWeekdayIdsByStaffId,
+              blockedShiftWeekdayIdsByStaffId,
+              preferredShiftTypeIdsByStaffId,
+              preferredShiftWeekdayIdsByStaffId,
               requestByKey
           );
 
@@ -666,17 +668,17 @@ public class ShiftAssignmentService {
             continue;
           }
 
-          createAssignmentInMemory(editor, staffById.get(staffId), shiftType, current, assignmentByKey);
+          createAssignmentInMemory(editor, staffById.get(staffId), shiftType, currentDate, assignmentByKey);
           monthlyWorkCount.merge(staffId, 1, Integer::sum);
-          workedDaysByStaff.computeIfAbsent(staffId, unused -> new HashSet<>()).add(current);
-          incrementDailyShiftCount(dailyShiftCount, current, shiftType.getId());
+          workedDaysByStaff.computeIfAbsent(staffId, unused -> new HashSet<>()).add(currentDate);
+          incrementDailyShiftCount(dailyShiftCount, currentDate, shiftType.getId());
           currentCount++;
           retries = 0;
           attempts++;
         }
 
         if (currentCount < required) {
-          unmet.add(buildUnmetCondition(current, shiftType, required, currentCount));
+          unmet.add(buildUnmetCondition(currentDate, shiftType, required, currentCount));
         }
       }
 
@@ -769,8 +771,11 @@ public class ShiftAssignmentService {
       Map<Long, Set<Integer>> preferredShiftWeekdayIdsByStaffId,
       Map<String, ShiftRequest> requestByKey) {
 
+    List<Staff> randomizedStaffs = new ArrayList<>(editableStaffs);
+    Collections.shuffle(randomizedStaffs, ThreadLocalRandom.current());
+
     List<Staff> candidates = collectAssignableCandidates(
-        editableStaffs,
+        randomizedStaffs,
         workDate,
         targetShiftType,
         assignmentByKey,
@@ -786,7 +791,7 @@ public class ShiftAssignmentService {
 
     if (candidates.isEmpty()) {
       candidates = collectAssignableCandidates(
-          editableStaffs,
+          randomizedStaffs,
           workDate,
           targetShiftType,
           assignmentByKey,
@@ -803,7 +808,7 @@ public class ShiftAssignmentService {
 
     if (candidates.isEmpty()) {
       candidates = collectAssignableCandidates(
-          editableStaffs,
+          randomizedStaffs,
           workDate,
           targetShiftType,
           assignmentByKey,
@@ -978,11 +983,7 @@ public class ShiftAssignmentService {
         ? Math.max(1, monthlyMax - c.monthlyWorkCount)
         : 10;
     weight += Math.max(1, remainingCapacity) * 3;
-
-    int monthlyBalancePenalty = monthlyMax > 0
-        ? Math.max(0, c.monthlyWorkCount - (monthlyMax / 2))
-        : 0;
-    weight -= monthlyBalancePenalty * 4;
+    weight -= c.monthlyWorkCount * 40;
 
     int recentSlack = Math.max(1, 7 - c.recentWorkCount);
     weight += recentSlack * 2;

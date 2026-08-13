@@ -439,6 +439,84 @@
 				"build"
 			],
 			"isBackground": false
+		},
+		{
+			"label": "Test ShiftAssignmentService Balancing",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
+				"./mvnw",
+				"-Dtest=ShiftAssignmentServiceTests",
+				"test"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Test Auto Generation Random Date Order",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
+				"./mvnw",
+				"-Dtest=ShiftAssignmentServiceTests",
+				"test"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Recheck ShiftAssignmentService Tests After Revert",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
+				"./mvnw",
+				"-Dtest=ShiftAssignmentServiceTests",
+				"test"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Test Random Date Order Generation",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
+				"./mvnw",
+				"-Dtest=ShiftAssignmentServiceTests",
+				"test"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Retest Random Date Order After Test Update",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
+				"./mvnw",
+				"-Dtest=ShiftAssignmentServiceTests",
+				"test"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Test Random Member Order Generation",
+			"type": "shell",
+			"command": "wsl",
+			"args": [
+				"--cd",
+				"/mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend",
+				"./mvnw",
+				"-Dtest=ShiftAssignmentServiceTests",
+				"test"
+			],
+			"isBackground": false
 		}
 	]
 }
