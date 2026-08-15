@@ -7,11 +7,13 @@ import AdminSystemSettingTab from "./components/AdminTabs/AdminSystemSettingTab"
 import AdminAutoShiftRuleTab from "./components/AdminTabs/AdminAutoShiftRuleTab";
 import { AuthContext } from "./context/AuthContext";
 import { fetchWithAuth } from "./utils/fetchWithAuth";
+import { DEFAULT_ROLE_LABELS, parseRoleLabels } from "./utils/roleLabels";
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("staff");
   const { auth } = useContext(AuthContext);
   const [loginProfile, setLoginProfile] = useState(null);
+  const [roleLabelMap, setRoleLabelMap] = useState({ ...DEFAULT_ROLE_LABELS });
 
   useEffect(() => {
     let mounted = true;
@@ -42,18 +44,28 @@ export default function AdminPage() {
       }
     }
 
+    async function loadRoleLabels() {
+      try {
+        const response = await fetchWithAuth("/api/system-settings/roleLabels");
+        if (!response.ok) {
+          setRoleLabelMap({ ...DEFAULT_ROLE_LABELS });
+          return;
+        }
+
+        const setting = await response.json();
+        setRoleLabelMap(parseRoleLabels(setting?.settingValueText || ""));
+      } catch {
+        setRoleLabelMap({ ...DEFAULT_ROLE_LABELS });
+      }
+    }
+
     loadLoginProfile();
+    loadRoleLabels();
 
     return () => {
       mounted = false;
     };
   }, [auth?.staffId, auth?.token]);
-
-  const roleLabelMap = {
-    MASTER: "マスター",
-    CHIEF: "チーフ",
-    MEMBER: "メンバー",
-  };
 
   const loginSource = loginProfile || auth;
 

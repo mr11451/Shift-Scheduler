@@ -5,6 +5,7 @@ import { fetchWithAuth } from "./utils/fetchWithAuth";
 import { isHolidayDate, parseHolidayDates, parseHolidayWeekdays } from "./utils/holidayDates";
 import { getMonthStatus } from "./utils/shiftMonthStatus";
 import { canSelectTarget } from "./utils/viewAccess";
+import { DEFAULT_ROLE_LABELS, parseRoleLabels } from "./utils/roleLabels";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -203,9 +204,10 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
 
       <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--line)", paddingTop: "1rem" }}>
         <h3 style={{ margin: "0 0 0.75rem" }}>申請済み一覧</h3>
-        {isMonthConfirmed ? (
-          <p style={{ margin: 0, color: "#6b7280" }}>この月はシフトが確定済みのため、申請は表示されません。</p>
-        ) : sortedRequests.length === 0 ? (
+        {isMonthConfirmed && (
+          <p style={{ margin: "0 0 0.75rem", color: "#6b7280" }}>この月はシフトが確定済みのため、新規登録はできませんが、申請内容は表示されます。</p>
+        )}
+        {sortedRequests.length === 0 ? (
           <p style={{ margin: 0, color: "#6b7280" }}>まだ申請がありません。</p>
         ) : (
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.5rem" }}>
@@ -325,15 +327,10 @@ export default function MemberPage() {
   const [holidayWeekdays, setHolidayWeekdays] = useState([]);
   const [isCurrentMonthConfirmed, setIsCurrentMonthConfirmed] = useState(false);
   const [isSelectedDateConfirmed, setIsSelectedDateConfirmed] = useState(false);
+  const [roleLabelMap, setRoleLabelMap] = useState({ ...DEFAULT_ROLE_LABELS });
 
   const [currentView, setCurrentView] = useState("calendar");
   const [calendarDate, setCalendarDate] = useState(new Date());
-
-  const roleLabelMap = {
-    MASTER: "マスター",
-    CHIEF: "チーフ",
-    MEMBER: "メンバー",
-  };
 
   const loginSummary = auth
     ? `${auth.staffName || "不明"} / ${roleLabelMap[auth.roleLevel] || auth.roleLevel || "不明"}`
@@ -343,6 +340,7 @@ export default function MemberPage() {
     loadStaffs();
     loadShiftTypes();
     loadHolidayDates();
+    loadRoleLabels();
   }, []);
 
   useEffect(() => {
@@ -480,6 +478,21 @@ export default function MemberPage() {
     } catch (e) {
       setHolidayDates([]);
       setHolidayWeekdays([]);
+    }
+  }
+
+  async function loadRoleLabels() {
+    try {
+      const res = await fetchWithAuth("/api/system-settings/roleLabels");
+      if (!res.ok) {
+        setRoleLabelMap({ ...DEFAULT_ROLE_LABELS });
+        return;
+      }
+
+      const setting = await res.json();
+      setRoleLabelMap(parseRoleLabels(setting?.settingValueText || ""));
+    } catch {
+      setRoleLabelMap({ ...DEFAULT_ROLE_LABELS });
     }
   }
 

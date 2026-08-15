@@ -391,7 +391,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
                 type="text"
                 value={settings.roleLabels.MASTER}
                 onChange={(e) => handleRoleLabelChange("MASTER", e.target.value)}
-                placeholder="マスター"
+                placeholder={DEFAULT_ROLE_LABELS.MASTER}
                 style={{ width: "100%", padding: "0.65rem", border: "1px solid var(--line)", borderRadius: "4px" }}
               />
             </label>
@@ -401,7 +401,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
                 type="text"
                 value={settings.roleLabels.CHIEF}
                 onChange={(e) => handleRoleLabelChange("CHIEF", e.target.value)}
-                placeholder="チーフ"
+                placeholder={DEFAULT_ROLE_LABELS.CHIEF}
                 style={{ width: "100%", padding: "0.65rem", border: "1px solid var(--line)", borderRadius: "4px" }}
               />
             </label>
@@ -411,7 +411,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
                 type="text"
                 value={settings.roleLabels.MEMBER}
                 onChange={(e) => handleRoleLabelChange("MEMBER", e.target.value)}
-                placeholder="メンバー"
+                placeholder={DEFAULT_ROLE_LABELS.MEMBER}
                 style={{ width: "100%", padding: "0.65rem", border: "1px solid var(--line)", borderRadius: "4px" }}
               />
             </label>

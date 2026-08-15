@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import "./StaffForm.css";
 import { fetchWithAuth } from "../utils/fetchWithAuth";
 import { AuthContext } from "../context/AuthContext";
+import { DEFAULT_ROLE_LABELS, parseRoleLabels } from "../utils/roleLabels";
 
 const WEEKDAY_OPTIONS = [
   { value: 0, label: "日" },
@@ -16,6 +17,7 @@ const WEEKDAY_OPTIONS = [
 export default function StaffForm({ staffId, onSuccess, onCancel }) {
   const { auth } = useContext(AuthContext);
   const canEditGroup = auth?.roleLevel === "MASTER";
+  const [roleLabelMap, setRoleLabelMap] = useState({ ...DEFAULT_ROLE_LABELS });
   const [form, setForm] = useState({
     staffName: "",
     email: "",
@@ -50,6 +52,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     loadGroups();
     loadQualifications();
     loadShiftTypes();
+    loadRoleLabels();
     if (staffId) {
       loadStaff(staffId);
       setIsEditMode(true);
@@ -59,6 +62,21 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
       setGroupLoadError("");
     }
   }, [staffId]);
+
+  async function loadRoleLabels() {
+    try {
+      const response = await fetchWithAuth("/api/system-settings/roleLabels");
+      if (!response.ok) {
+        setRoleLabelMap({ ...DEFAULT_ROLE_LABELS });
+        return;
+      }
+
+      const setting = await response.json();
+      setRoleLabelMap(parseRoleLabels(setting?.settingValueText || ""));
+    } catch {
+      setRoleLabelMap({ ...DEFAULT_ROLE_LABELS });
+    }
+  }
 
   async function loadGroups() {
     try {
@@ -331,15 +349,18 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
       return;
     }
 
+    const memberLabel = roleLabelMap.MEMBER || DEFAULT_ROLE_LABELS.MEMBER;
+    const chiefLabel = roleLabelMap.CHIEF || DEFAULT_ROLE_LABELS.CHIEF;
+
     if ((form.roleLevel === "MEMBER" || form.roleLevel === "CHIEF") && !form.groupId) {
-      setMessage("メンバ/チーフ選択時はグループが必須です。");
+      setMessage(`${memberLabel} / ${chiefLabel} 選択時はグループが必須です。`);
       setMessageType("error");
       setLoading(false);
       return;
     }
 
     if (form.roleLevel === "MEMBER" && !form.email.trim()) {
-      setMessage("メンバ選択時はメールアドレスが必須です。");
+      setMessage(`${memberLabel} 選択時はメールアドレスが必須です。`);
       setMessageType("error");
       setLoading(false);
       return;
@@ -427,7 +448,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
               onChange={onChange}
               className="form-control"
             />
-            <small>メンバ選択時は必須</small>
+            <small>{roleLabelMap.MEMBER || DEFAULT_ROLE_LABELS.MEMBER}選択時は必須</small>
           </div>
         </div>
 
@@ -469,9 +490,9 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
               className="form-control"
               required
             >
-              <option value="MEMBER">メンバ</option>
-              <option value="CHIEF">チーフ</option>
-              <option value="MASTER">マスタ</option>
+              <option value="MEMBER">{roleLabelMap.MEMBER || DEFAULT_ROLE_LABELS.MEMBER}</option>
+              <option value="CHIEF">{roleLabelMap.CHIEF || DEFAULT_ROLE_LABELS.CHIEF}</option>
+              <option value="MASTER">{roleLabelMap.MASTER || DEFAULT_ROLE_LABELS.MASTER}</option>
             </select>
           </div>
         </div>
