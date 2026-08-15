@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./context/AuthContext";
 import { fetchWithAuth } from "./utils/fetchWithAuth";
 import { isHolidayDate, parseHolidayDates, parseHolidayWeekdays } from "./utils/holidayDates";
@@ -301,7 +302,8 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
 }
 
 export default function MemberPage() {
-  const { auth } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { auth, logout } = useContext(AuthContext);
   const [staffs, setStaffs] = useState([]);
   const [viewableStaffs, setViewableStaffs] = useState([]);
   const [approvedTargetStaffIds, setApprovedTargetStaffIds] = useState([]);
@@ -589,6 +591,11 @@ export default function MemberPage() {
     }
   }
 
+  function handleLogout() {
+    logout();
+    navigate("/login", { replace: true });
+  }
+
   function handleStaffSelection(nextStaffId) {
     if (!nextStaffId) {
       setSelectedStaffId("");
@@ -733,9 +740,12 @@ export default function MemberPage() {
           ログイン中: {loginSummary}
         </p>
       )}
-      <div style={{ display: "flex", justifyContent: "flex-end", margin: "-0.5rem 0 1rem" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", margin: "-0.5rem 0 1rem" }}>
         <button type="button" onClick={requestPasswordReset} style={{ padding: "0.45rem 0.7rem" }}>
           自分のパスワードを変更
+        </button>
+        <button type="button" onClick={handleLogout} style={{ padding: "0.45rem 0.7rem", backgroundColor: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db" }}>
+          ログアウト
         </button>
       </div>
 
