@@ -1,9 +1,9 @@
 package com.shiftscheduler.server.domain;
 
 public enum RoleLevel {
-    MEMBER("メンバ"),
+    MEMBER("メンバー"),
     CHIEF("チーフ"),
-    MASTER("マスタ");
+    MASTER("マスター");
 
     private final String displayName;
 

@@ -47,7 +47,7 @@ public class SystemSettingService {
         .orElseThrow(() -> new IllegalArgumentException("更新者スタッフが見つかりません。"));
 
     if (!accessControlService.isMaster(updater)) {
-      throw new IllegalArgumentException("マスタのみシステム設定を更新できます。");
+      throw new IllegalArgumentException("マスターのみシステム設定を更新できます。");
     }
 
     SystemSetting setting = systemSettingRepository.findBySettingKey(settingKey)
@@ -72,7 +72,7 @@ public class SystemSettingService {
         .orElseThrow(() -> new IllegalArgumentException("更新者スタッフが見つかりません。"));
 
     if (!accessControlService.isMaster(updater)) {
-      throw new IllegalArgumentException("マスタのみシステム設定を更新できます。");
+      throw new IllegalArgumentException("マスターのみシステム設定を更新できます。");
     }
 
     SystemSetting setting = systemSettingRepository.findBySettingKey(settingKey)

@@ -28,12 +28,15 @@ A comprehensive Spring Boot and React-based staff shift scheduling and managemen
 - **Shift Requests**: Allow staff to submit desired shifts with approval workflow
 - **Group Management**: Organize staff into logical groups for permission scoping
 - **Calendar Permissions**: Control inter-staff calendar viewing permissions
+- **Member Calendar Requests**: Allow members to request access to same-group staff calendars when enabled
 - **Shift Types**: Define flexible shift templates (morning, evening, night, off)
 - **Qualifications**: Track staff certifications and qualifications
 - **Member Provisioning**: Issue initial login information for new members and deliver it by SMTP when configured
 - **Password Reset**: Issue one-time password reset URLs and verification codes with a one-hour validity period
 - **System Settings**: Configure system-wide preferences via admin dashboard
 - **Audit Logging**: Track all modifications with editor/updater information
+
+For production deployment, see [docs/production_setup.md](docs/production_setup.md) for the WSL, Docker, database, SMTP, secret-management, backup, and post-deployment checklist.
 
 ## 🏗️ Architecture
 
@@ -85,6 +88,8 @@ Role-based permission matrix:
 | Edit any staff shift | ✓ | ✓ (group only) | ✗ (self only) |
 | View desired shifts | ✓ | ✓ (group only) | ✓ (self only) |
 | Approve desired shifts | ✓ | ✓ (group only) | ✗ |
+| Request another staff calendar | ✗ | ✗ | ✓ (same group, feature enabled) |
+| Approve/reject calendar requests | ✗ | ✗ | ✓ (requests addressed to self) |
 | Manage groups | ✓ | ✗ | ✗ |
 | Manage system settings | ✓ | ✗ | ✗ |
 
@@ -120,7 +125,7 @@ Role-based permission matrix:
 
 - Java 17 or higher
 - PostgreSQL 14 or higher
-- Node.js 16+ and npm 8+
+- Node.js 20 or higher and npm 9 or higher
 - Docker & Docker Compose (optional)
 - Git
 
@@ -162,6 +167,16 @@ psql --version
 node --version
 npm --version
 ```
+
+The frontend requires Node.js 20 or higher. The Docker build uses `node:20-slim`, and the React Router dependency also requires Node.js 20 or higher. Verify that `node` and `npm` resolve to the WSL/Linux installation rather than a Windows installation mounted in the WSL `PATH`.
+
+Required frontend files:
+
+- `frontend/package.json`: frontend dependencies and npm scripts
+- `frontend/package-lock.json`: locked dependency versions for reproducible installs
+- `frontend/vite.config.js`: Vite server, `/api` proxy, and `VITE_API_PROXY_TARGET` configuration
+- `frontend/index.html`: frontend entry HTML
+- `frontend/src/`: React pages, components, context, utilities, and tests
 
 ## 🚀 Installation & Setup
 
@@ -218,12 +233,14 @@ cd backend
 ```bash
 cd frontend
 
-# Install dependencies
-npm install
+# Install the locked dependency versions
+npm ci
 
 # Build for production
 npm run build
 ```
+
+For a development install when `package-lock.json` must be regenerated, use `npm install` instead. Keep `package.json` and `package-lock.json` synchronized in the same change.
 
 ## ▶️ Running the Application
 
@@ -271,6 +288,25 @@ docker-compose down
    - System Settings
 - Shift Edit page: `http://localhost:8000/admin/shifts` or `http://localhost:8080/admin/shifts`
 - To return to the member page, use `http://localhost:8000/member` or `http://localhost:8080/member`
+
+### Member Page
+
+- URL: `http://localhost:8000/member` (Docker Compose) or `http://localhost:8080/member` (local development)
+- Members can register and submit their own shift requests.
+- When `calendarViewPermissionEnabled` is `true`, a member can request calendar viewing access to active staff in the same group.
+- Request targets exclude the logged-in member and include same-group `MEMBER`, `CHIEF`, and `MASTER` staff.
+- Pending and approved targets are shown as `申請済` and cannot be requested again.
+- The request-target section is hidden for `CHIEF` and `MASTER`, and is hidden for every role when the feature is disabled.
+
+Related endpoints:
+
+- `GET /api/staffs/permission-targets`
+- `POST /api/calendar-view-permissions`
+- `GET /api/calendar-view-permissions/requester/{staffId}/status/PENDING`
+- `GET /api/calendar-view-permissions/target/{staffId}/status/PENDING`
+- `GET /api/calendar-view-permissions/requester/{staffId}/status/APPROVED`
+
+The server validates the feature flag, requester role, active status, group membership, and self-target restriction. The frontend uses the Vite `/api` proxy; local development defaults to `http://127.0.0.1:8080`, and Docker can be selected with `VITE_API_PROXY_TARGET=http://127.0.0.1:8000`.
 
 ### Environment Variables
 
@@ -456,6 +492,7 @@ frontend/
 │   ├── App.jsx                             (Main component)
 │   └── main.jsx                            (React DOM entry)
 ├── package.json                            (npm dependencies)
+├── package-lock.json                       (locked npm dependency versions)
 └── vite.config.js                          (Vite configuration)
 ```
 
@@ -562,7 +599,7 @@ public class MyService {
 - **Total Lines of Backend Code**: ~7,000+
 - **REST Endpoints**: 57
 - **Database Tables**: 11
-- **Database Migrations**: 10
+- **Database Migrations**: 2
 - **React Components**: 5
 - **Frontend Lines of Code**: ~1,500+
 
@@ -601,7 +638,7 @@ kill -9 <PID>
 ### Flyway Migration Fails
 
 ```
-ERROR: Validate failed: Migration checksum mismatch for version 3
+ERROR: Validate failed: Migration checksum mismatch for version 1 or 2
 ```
 
 **Solution**: Ensure migration files haven't been modified. Use `PRAGMA foreign_keys=OFF;` to disable constraints during cleanup (if necessary).
@@ -609,9 +646,9 @@ ERROR: Validate failed: Migration checksum mismatch for version 3
 ### Frontend Build Issues
 
 ```bash
-# Clear cache and reinstall
-rm -rf node_modules package-lock.json
-npm install
+# Clear installed modules and reinstall locked dependencies
+rm -rf node_modules
+npm ci
 npm run build
 ```
 

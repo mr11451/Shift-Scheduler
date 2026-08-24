@@ -33,6 +33,7 @@
 - `api_db_model.md` : API/DBモデル設計（テーブル、制約、RESTモデル）
 - `api_reference.md` : APIリファレンス（エンドポイント仕様）
 - `auto_shift_generation_rules.md` : シフト自動生成ルール仕様（`autoShiftGenerationRules` の項目、判定順序、緩和ルール）
+- `production_setup.md` : 本番環境の構築手順（Docker、DB、SMTP、シークレット、バックアップ）
 
 ## 推奨参照順
 

@@ -894,6 +894,31 @@ Manage inter-staff calendar sharing permissions.
 
 **Status Workflow**: PENDING → APPROVED | REJECTED | CANCELED | EXPIRED
 
+Calendar permission requests are available only when `calendarViewPermissionEnabled` is `true`. A MEMBER may request access to active staff in the same group, regardless of the target staff role. The requester is resolved from the JWT.
+
+### Get Calendar Permission Request Targets
+
+**Request**
+```
+GET /staffs/permission-targets
+```
+
+**Response** (200 OK)
+```json
+[
+  {
+    "id": 2,
+    "staffCode": "STF-00002",
+    "staffName": "山田花子",
+    "roleLevel": "CHIEF",
+    "groupId": 1,
+    "isActive": true
+  }
+]
+```
+
+The list excludes the logged-in staff member and includes only active staff in the same group. `CHIEF` and `MASTER` users do not use this member request-target flow.
+
 ### Get Permission by ID
 
 **Request**
@@ -906,15 +931,13 @@ GET /calendar-view-permissions/{id}
 {
   "id": 1,
   "requesterStaffId": 1,
-  "requesterStaffCode": "STF-00001",
   "requesterStaffName": "田中太郎",
   "targetStaffId": 2,
-  "targetStaffCode": "STF-00002",
   "targetStaffName": "山田花子",
   "status": "APPROVED",
-  "expirationDate": "2026-12-26",
   "requestedAt": "2026-07-26T10:00:00+09:00",
-  "approvedAt": "2026-07-26T11:00:00+09:00"
+  "respondedAt": "2026-07-26T11:00:00+09:00",
+  "expiredAt": null
 }
 ```
 
@@ -960,8 +983,7 @@ Content-Type: application/json
 Authorization: Bearer <JWT>
 
 {
-  "targetStaffId": 2,
-  "expirationDate": "2026-12-26"
+  "targetStaffId": 2
 }
 ```
 
@@ -994,7 +1016,7 @@ Authorization: Bearer <JWT>
 {
   "id": 1,
   "status": "APPROVED",
-  "approvedAt": "2026-07-26T11:00:00+09:00",
+  "respondedAt": "2026-07-26T11:00:00+09:00",
   ...
 }
 ```

@@ -214,55 +214,55 @@
   - MEMBER登録時に初回ログイン情報を発行する
   - `memberLoginNotificationEnabled=true` かつSMTP送信可能な場合、登録メールへ送信する
   - 送信不可時はレスポンスの `initialLoginInformation` に初回ログイン情報を含める
-- `PUT /api/staffs/{staffId}`（マスタのみ）
+- `PUT /api/staffs/{staffId}`（マスターのみ）
 - `GET /api/staffs/{staffId}/calendar?yearMonth=YYYY-MM`
-  - メンバ: 自分のみ
-  - メンバ（オプション機能有効時）: 自分 + 許可済み相手
-  - チーフ: 自分 + 同一グループのメンバのみ
-  - マスタ: 全員
+  - メンバー: 自分のみ
+  - メンバー（オプション機能有効時）: 自分 + 許可済み相手
+  - チーフ: 自分 + 同一グループのメンバーのみ
+  - マスター: 全員
 
 ### 2. グループ
 
-- `GET /api/groups`（チーフ/マスタ）
-- `POST /api/groups`（マスタのみ）
-- `PUT /api/groups/{groupId}`（マスタのみ）
+- `GET /api/groups`（チーフ/マスター）
+- `POST /api/groups`（マスターのみ）
+- `PUT /api/groups/{groupId}`（マスターのみ）
 
 ### 3. 資格
 
 - `GET /api/qualifications`
-- `POST /api/qualifications`（マスタのみ）
-- `PUT /api/qualifications/{id}`（マスタのみ）
+- `POST /api/qualifications`（マスターのみ）
+- `PUT /api/qualifications/{id}`（マスターのみ）
 
 ### 4. シフト種類
 
 - `GET /api/shift-types`
-- `POST /api/shift-types`（マスタのみ）
-- `PUT /api/shift-types/{id}`（マスタのみ）
+- `POST /api/shift-types`（マスターのみ）
+- `PUT /api/shift-types/{id}`（マスターのみ）
 
 ### 5. 希望シフト
 
 - `GET /api/staffs/{staffId}/shift-requests?yearMonth=YYYY-MM`
-  - メンバ: 自分のみ
-  - チーフ: 同一グループのメンバのみ
-  - マスタ: 全員
+  - メンバー: 自分のみ
+  - チーフ: 同一グループのメンバーのみ
+  - マスター: 全員
 - `PUT /api/staffs/{staffId}/shift-requests/bulk`
-  - メンバ: 自分のみ更新可
+  - メンバー: 自分のみ更新可
   - チーフ: 原則更新不可（参照のみ）
-  - マスタ: 必要時のみ更新可
+  - マスター: 必要時のみ更新可
 - `POST /api/staffs/{staffId}/shift-requests/submit`
-  - メンバ本人の希望を提出状態へ変更
+  - メンバー本人の希望を提出状態へ変更
 
 ### 8. メンバー間カレンダー閲覧申請/許可（オプション）
 
-- `GET /api/calendar-view-permissions/settings`
-  - 機能有効/無効を返す
-- `POST /api/calendar-view-permissions/requests`
+- `GET /api/staffs/permission-targets`
+  - ログイン中の MEMBER と同じグループの有効なスタッフを返す
+- `POST /api/calendar-view-permissions`
   - request: targetStaffId
-  - メンバが同一グループの相手へ申請
-- `POST /api/calendar-view-permissions/requests/{requestId}/approve`
-- `POST /api/calendar-view-permissions/requests/{requestId}/reject`
-- `POST /api/calendar-view-permissions/requests/{requestId}/cancel`
-- `GET /api/calendar-view-permissions/approved`
+  - MEMBER が同一グループのスタッフへ申請
+- `POST /api/calendar-view-permissions/{permissionId}/approve`
+- `POST /api/calendar-view-permissions/{permissionId}/reject`
+- `POST /api/calendar-view-permissions/{permissionId}/cancel`
+- `GET /api/calendar-view-permissions/requester/{requesterStaffId}/status/APPROVED`
   - 自分が閲覧可能な相手一覧
 
 ### 9. システム設定（管理者）
@@ -271,7 +271,7 @@
 - `GET /api/system-settings/{settingKey}`
 - `PUT /api/system-settings/{settingKey}/boolean?value=true|false`
 - `PUT /api/system-settings/{settingKey}/text?value=...`
-  - 更新はマスタのみ
+  - 更新はマスターのみ
   - 初回ログイン通知のキーは `memberLoginNotificationEnabled` と `memberLoginNotificationBaseUrl`
 
 ### 10. パスワード変更
@@ -367,7 +367,7 @@
   - actor.role = CHIEF -> `target.role == MEMBER && actor.groupId == target.groupId`
   - actor.role = MEMBER ->
     - `actor.id == target.id` は常に true
-    - `calendarViewPermissionEnabled == true` かつ APPROVED がある場合は他メンバも true
+    - `calendarViewPermissionEnabled == true` かつ APPROVED がある場合は他メンバーも true
 - `canEditShift(actor, target)`
   - actor.role = MASTER -> true
   - actor.role = CHIEF -> `target.role == MEMBER && actor.groupId == target.groupId`
@@ -375,7 +375,6 @@
 
 - `canRequestCalendarView(actor, target)`
   - actor.role = MEMBER
-  - target.role = MEMBER
   - actor.groupId = target.groupId
   - `calendarViewPermissionEnabled == true`
 
@@ -397,15 +396,15 @@
 
 ## 受け入れ条件
 
-- チーフが異なるグループのメンバを取得/更新できない
-- メンバが権限外のシフト割当APIにアクセスできない
-- マスタが全件取得/更新できる
+- チーフが異なるグループのメンバーを取得/更新できない
+- メンバーが権限外のシフト割当APIにアクセスできない
+- マスターが全件取得/更新できる
 - `role_level=CHIEF|MEMBER` で `group_id` 未設定登録が失敗する
 - `staff_id + work_date` 重複登録が失敗する
 - 自動生成で希望シフト考慮モードが反映される
 - 希望と充足要件が競合した場合、未反映希望と理由が返る
 - メンバー間閲覧機能が無効時、申請APIは利用不可
 - メンバー間閲覧機能が有効時、APPROVED な相手のみ閲覧可能
-- メンバ登録時、SMTP送信可能かつ通知設定が有効なら初回ログイン情報メールが送信される
+- メンバー登録時、SMTP送信可能かつ通知設定が有効なら初回ログイン情報メールが送信される
 - SMTP送信不可時は初回ログイン情報が作成レスポンスに含まれる
 - パスワード変更後は変更前のJWTが利用できない

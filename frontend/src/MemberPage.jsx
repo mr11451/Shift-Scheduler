@@ -292,9 +292,9 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
       </div>}
 
       {calendarViewPermissionEnabled && <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--line)", paddingTop: "1rem" }}>
-        <h3 style={{ margin: "0 0 0.75rem" }}>閲覧承認申請</h3>
+        <h3 style={{ margin: "0 0 0.75rem" }}>閲覧申請</h3>
         {permissionRequests.length === 0 ? (
-          <p style={{ margin: 0, color: "#6b7280" }}>閲覧承認の申請はありません。</p>
+          <p style={{ margin: 0, color: "#6b7280" }}>閲覧申請はありません。</p>
         ) : (
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.5rem" }}>
             {permissionRequests.map((permission) => (
@@ -481,7 +481,7 @@ export default function MemberPage() {
     if (!auth?.staffId) return;
     try {
       const res = await fetchWithAuth(`/api/calendar-view-permissions/requester/${auth.staffId}/status/APPROVED`);
-      if (!res.ok) throw new Error("閲覧承認一覧の取得に失敗しました。");
+      if (!res.ok) throw new Error("閲覧許可一覧の取得に失敗しました。");
       const permissions = await res.json();
       setApprovedPermissions(Array.isArray(permissions) ? permissions : []);
       setApprovedTargetStaffIds(Array.isArray(permissions) ? permissions.map((permission) => permission.targetStaffId) : []);
@@ -505,7 +505,7 @@ export default function MemberPage() {
     if (!auth?.staffId) return;
     try {
       const res = await fetchWithAuth(`/api/calendar-view-permissions/requester/${auth.staffId}/status/PENDING`);
-      if (!res.ok) throw new Error("申請済み閲覧対象一覧の取得に失敗しました。");
+      if (!res.ok) throw new Error("閲覧申請済み対象一覧の取得に失敗しました。");
       const permissions = await res.json();
       setSubmittedPermissionTargetIds(
         Array.isArray(permissions) ? permissions.map((permission) => Number(permission.targetStaffId)) : []
@@ -662,9 +662,9 @@ export default function MemberPage() {
       });
       if (!res.ok) {
         const err = await res.text();
-        throw new Error(err || "閲覧承認の申請に失敗しました。");
+        throw new Error(err || "閲覧申請に失敗しました。");
       }
-      showMessage("閲覧承認を申請しました。承認までお待ちください。", "success");
+      showMessage("閲覧申請を送信しました。許可されるまでお待ちください。", "success");
       await loadApprovedPermissions();
       await loadSubmittedPermissionRequests();
       await loadPermissionTargets();
@@ -722,7 +722,7 @@ export default function MemberPage() {
       return;
     }
 
-    const shouldRequest = window.confirm(`${targetName}さんの閲覧承認を申請しますか？`);
+    const shouldRequest = window.confirm(`${targetName}さんへの閲覧申請を送信しますか？`);
     if (!shouldRequest) {
       setSelectedStaffId(String(auth?.staffId || ""));
       return;

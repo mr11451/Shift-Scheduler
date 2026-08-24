@@ -236,13 +236,13 @@ export default function AdminSystemSettingTab({ onCancel }) {
             <div>
               <div style={{ fontWeight: 600 }}>機能の有効/無効</div>
               <div style={{ fontSize: "0.9rem", color: "#666", marginTop: "0.25rem" }}>
-                有効時：メンバが同一グループ内の他メンバへ閲覧申請を送信できます
+                有効時：メンバーが同一グループ内の他メンバーへ閲覧申請を送信できます
               </div>
             </div>
           </label>
           <div style={{ backgroundColor: "#f9f9f9", padding: "1rem", borderRadius: "4px", marginTop: "1rem" }}>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#666" }}>
-              <strong>有効時の挙動：</strong> メンバが同一グループのメンバに対してカレンダー閲覧を申請でき、申請を受けたメンバが許可/拒否を選択できます。
+              <strong>有効時の挙動：</strong> メンバーが同一グループのメンバーに対してカレンダー閲覧を申請でき、申請を受けたメンバーが許可/拒否を選択できます。
             </p>
             <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.85rem", color: "#666" }}>
               <strong>無効時の挙動：</strong> 申請・許可・遷移UIを非表示にします。
@@ -263,7 +263,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
             <div>
               <div style={{ fontWeight: 600 }}>機能の有効/無効</div>
               <div style={{ fontSize: "0.9rem", color: "#666", marginTop: "0.25rem" }}>
-                有効時：メンバ新規登録時に初回ログイン情報をメールで自動送信します
+                有効時：メンバー新規登録時に初回ログイン情報をメールで自動送信します
               </div>
             </div>
           </label>
@@ -291,7 +291,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
           </div>
           <div style={{ backgroundColor: "#f9f9f9", padding: "1rem", borderRadius: "4px", marginTop: "1rem" }}>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#666" }}>
-              <strong>有効時の挙動：</strong> メンバ新規登録時に登録メールアドレスへアクセスURL・ログインコード・初期パスワードを送信します。
+              <strong>有効時の挙動：</strong> メンバー新規登録時に登録メールアドレスへアクセスURL・ログインコード・初期パスワードを送信します。
             </p>
             <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.85rem", color: "#666" }}>
               <strong>無効時の挙動：</strong> 新規登録時の自動送信を行いません。必要時は管理者が手動で再送できます。

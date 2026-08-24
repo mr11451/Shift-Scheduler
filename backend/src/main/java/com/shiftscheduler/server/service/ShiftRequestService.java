@@ -149,7 +149,7 @@ public class ShiftRequestService {
 
     // Only MASTER or CHIEF can approve
     if (!accessControlService.isMaster(editor) && !accessControlService.isChief(editor)) {
-      throw new IllegalArgumentException("マスタまたはチーフのみ承認できます。");
+      throw new IllegalArgumentException("マスターまたはチーフのみ承認できます。");
     }
 
     // Can only approve if status is SUBMITTED
@@ -175,7 +175,7 @@ public class ShiftRequestService {
 
     // Only MASTER or CHIEF can reject
     if (!accessControlService.isMaster(editor) && !accessControlService.isChief(editor)) {
-      throw new IllegalArgumentException("マスタまたはチーフのみ却下できます。");
+      throw new IllegalArgumentException("マスターまたはチーフのみ却下できます。");
     }
 
     // Can only reject if status is SUBMITTED

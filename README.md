@@ -11,10 +11,11 @@
 
 - **ユーザー認証** - スタッフコードとパスワードによるログイン
 - **ロールベースアクセス制御** - MEMBER / CHIEF / MASTER の3段階権限
-- **初回ログイン情報の発行** - メンバ登録時に初期パスワードを発行し、設定済みSMTPでメール送信
+- **初回ログイン情報の発行** - メンバー登録時に初期パスワードを発行し、設定済みSMTPでメール送信
 - **パスワード変更** - 1時間有効・ワンタイムURLと確認コードによる変更
 - シフト登録・編集
 - シフト一覧表示
+- メンバー間のカレンダー閲覧申請（システム設定で有効化した場合）
 - PostgreSQL への永続化
 
 ## 管理者ページ
@@ -28,6 +29,26 @@
   - システム設定
 - シフト編集画面: `/admin/shifts`
 - 管理者ページから会員ページへ戻る場合は `/member` を使用します
+
+## メンバー画面
+
+- URL: `/member`
+- メンバーは自分のシフト希望を登録・提出できます
+- システム設定 `calendarViewPermissionEnabled` が有効な場合、同じグループのスタッフへカレンダー閲覧を申請できます
+- 申請対象は、ログイン中のメンバー自身を除く同じグループの有効なスタッフです。`MEMBER`、`CHIEF`、`MASTER` のロールを問わず対象になります
+- 申請中または承認済みの対象は「申請済」と表示され、再申請できません
+- `CHIEF` / `MASTER` には「閲覧申請対象メンバー」は表示されません
+- 機能が無効な場合は、申請対象・申請一覧・承認済み一覧を表示しません
+
+### メンバー間カレンダー閲覧申請API
+
+- `GET /api/staffs/permission-targets` - ログイン中のメンバーが申請できる対象一覧
+- `POST /api/calendar-view-permissions` - カレンダー閲覧申請を作成
+- `GET /api/calendar-view-permissions/requester/{staffId}/status/PENDING` - 自分が送信した申請中一覧
+- `GET /api/calendar-view-permissions/target/{staffId}/status/PENDING` - 自分宛ての申請中一覧
+- `GET /api/calendar-view-permissions/requester/{staffId}/status/APPROVED` - 自分が承認済みの閲覧対象一覧
+
+申請APIでは、設定が有効であること、申請者が `MEMBER` であること、対象者が同じグループに所属していることをサーバー側でも検証します。
 
 ### システム設定の休業日 CSV 取込
 
@@ -59,6 +80,10 @@ date,name,notes
 シフト自動生成の設定項目・判定順序・制約緩和の仕様は以下を参照してください。
 
 - [docs/auto_shift_generation_rules.md](docs/auto_shift_generation_rules.md)
+
+## 本番環境の構築
+
+本番環境の構築、環境変数、Docker、PostgreSQL、SMTP、バックアップ、デプロイ後確認の手順は、[docs/production_setup.md](docs/production_setup.md) を参照してください。
 
 ## WSL実行ルール（必須）
 
@@ -169,7 +194,7 @@ export DB_PASSWORD=shift_password
 
 ### パスワード変更メール設定
 
-会員画面からのパスワード変更では、登録済みメールアドレスへ再設定URLと確認コードを送信します。メンバ新規登録時の初回ログイン情報も同じSMTP設定を使用します。SMTP サーバーを使用する環境では、バックエンド起動前に次の環境変数を設定してください。
+会員画面からのパスワード変更では、登録済みメールアドレスへ再設定URLと確認コードを送信します。メンバー新規登録時の初回ログイン情報も同じSMTP設定を使用します。SMTP サーバーを使用する環境では、バックエンド起動前に次の環境変数を設定してください。
 
 ```bash
 export SMTP_HOST=smtp.example.com
