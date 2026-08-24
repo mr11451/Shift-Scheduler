@@ -1,4 +1,29 @@
--- Seed development and test data.
+-- Apply optional schema additions and seed development/production defaults.
+
+ALTER TABLE staffs
+    ADD COLUMN IF NOT EXISTS ng_shift_time_bands VARCHAR(1000);
+
+ALTER TABLE staffs
+    ADD COLUMN IF NOT EXISTS preferred_shift_time_bands VARCHAR(1000);
+
+ALTER TABLE shift_requests
+    ALTER COLUMN desired_shift_type_id DROP NOT NULL;
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    staff_id BIGINT NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL,
+    verification_code_hash VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_staff_id ON password_reset_tokens (staff_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token_hash ON password_reset_tokens (token_hash);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at ON password_reset_tokens (expires_at);
+
+ALTER TABLE staffs
+    ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP;
 
 INSERT INTO groups (group_code, group_name, is_active)
 VALUES
@@ -55,11 +80,12 @@ ON CONFLICT (qualification_name) DO NOTHING;
 
 INSERT INTO system_settings (setting_key, setting_value_boolean, updated_at)
 VALUES
-    ('member_calendar_share_enabled', FALSE, CURRENT_TIMESTAMP),
-    ('member_initial_login_mail_enabled', FALSE, CURRENT_TIMESTAMP)
+    ('calendarViewPermissionEnabled', FALSE, CURRENT_TIMESTAMP),
+    ('memberLoginNotificationEnabled', FALSE, CURRENT_TIMESTAMP)
 ON CONFLICT (setting_key) DO NOTHING;
 
 INSERT INTO system_settings (setting_key, setting_value_text, updated_at)
 VALUES
-    ('member_initial_login_access_base_url', 'https://example.com/first-login', CURRENT_TIMESTAMP)
+    ('memberLoginNotificationBaseUrl', 'https://example.com/first-login', CURRENT_TIMESTAMP),
+    ('roleLabels', '{"MASTER":"マスター","CHIEF":"チーフ","MEMBER":"メンバー"}', CURRENT_TIMESTAMP)
 ON CONFLICT (setting_key) DO NOTHING;

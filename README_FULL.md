@@ -410,15 +410,10 @@ See [API Documentation](docs/api_reference.md) for detailed endpoint specificati
 
 Located in `backend/src/main/resources/db/migration/`:
 
-- `V001__001_initialize_schema.sql`: Initial schema
-- `V002__002_seed_dev_data.sql`: Development/test data
-- `V003__003_seed_production_defaults.sql`: Production defaults
-- `V004__004_add_staff_ng_shift_time_bands.sql`: Staff NG shift bands
-- `V005__005_add_staff_preferred_shift_time_bands.sql`: Staff preferred shift bands
-- `V006__006_allow_null_desired_shift_type.sql`: Vacation request support
-- `V007__007_add_role_labels_system_setting.sql`: Role label setting
-- `V008__008_add_password_reset_tokens.sql`: Password reset tokens
-- `V009__009_add_password_changed_at.sql`: JWT invalidation after password changes
+- `V001__001_initialize_schema.sql`: Initial schema and indexes
+- `V002__002_seed_dev_data.sql`: Optional schema additions plus canonical development/production defaults
+
+The migration set is intentionally kept to two files. Databases created with the previous V003-V010 history must be recreated, or their Flyway history must be reset, before applying this layout.
 
 ### Entity Relationships
 

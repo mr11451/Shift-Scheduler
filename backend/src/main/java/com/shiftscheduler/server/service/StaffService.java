@@ -166,16 +166,32 @@ public class StaffService {
             return allStaffs;
         }
 
+        boolean calendarViewPermissionEnabled = Boolean.TRUE.equals(
+            systemSettingService.getSystemSettingBooleanValue("calendarViewPermissionEnabled"));
         Set<Long> approvedTargetIds = new java.util.HashSet<>(
                 calendarViewPermissionRepository.findApprovedTargetStaffIds(requesterStaffId,
                         com.shiftscheduler.server.domain.CalendarViewPermissionStatus.APPROVED));
 
         return allStaffs.stream()
-                .filter(staff -> isViewableStaff(requester, staff, approvedTargetIds))
+            .filter(staff -> isViewableStaff(requester, staff, approvedTargetIds, calendarViewPermissionEnabled))
                 .collect(Collectors.toList());
     }
 
-    private boolean isViewableStaff(Staff requester, Staff targetStaff, Set<Long> approvedTargetIds) {
+    public List<Staff> getCalendarViewPermissionTargets(Long requesterStaffId) {
+        Optional<Staff> requesterOpt = staffRepository.findById(requesterStaffId);
+        if (requesterOpt.isEmpty() || requesterOpt.get().getRoleLevel() != RoleLevel.MEMBER
+                || !Boolean.TRUE.equals(systemSettingService.getSystemSettingBooleanValue("calendarViewPermissionEnabled"))) {
+            return List.of();
+        }
+
+        Staff requester = requesterOpt.get();
+        return staffRepository.findAllByIsActiveTrue().stream()
+                .filter(target -> isSameGroup(requester, target))
+                .collect(Collectors.toList());
+    }
+
+        private boolean isViewableStaff(Staff requester, Staff targetStaff, Set<Long> approvedTargetIds,
+                        boolean calendarViewPermissionEnabled) {
         if (requester == null || targetStaff == null) {
             return false;
         }
@@ -190,10 +206,17 @@ public class StaffService {
 
         if (requester.getRoleLevel() == RoleLevel.MEMBER) {
             return requester.getId().equals(targetStaff.getId())
-                    || approvedTargetIds.contains(targetStaff.getId());
+                || (calendarViewPermissionEnabled && approvedTargetIds.contains(targetStaff.getId()));
         }
 
         return false;
+    }
+
+    private boolean isSameGroup(Staff requester, Staff targetStaff) {
+        return requester.getGroup() != null
+                && targetStaff.getGroup() != null
+                && requester.getGroup().getId().equals(targetStaff.getGroup().getId())
+                && !requester.getId().equals(targetStaff.getId());
     }
 
     /**

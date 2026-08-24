@@ -26,6 +26,9 @@ public class CalendarViewPermissionService {
   @Autowired
   private StaffRepository staffRepository;
 
+  @Autowired
+  private SystemSettingService systemSettingService;
+
   @Transactional
   public CalendarViewPermissionResponse createCalendarViewPermission(Long requesterStaffId, CalendarViewPermissionCreateRequest request) {
     // Validate required fields
@@ -41,6 +44,17 @@ public class CalendarViewPermissionService {
         .orElseThrow(() -> new IllegalArgumentException("申請者スタッフが見つかりません。"));
     Staff target = staffRepository.findById(request.getTargetStaffId())
         .orElseThrow(() -> new IllegalArgumentException("対象スタッフが見つかりません。"));
+
+    if (!Boolean.TRUE.equals(systemSettingService.getSystemSettingBooleanValue("calendarViewPermissionEnabled"))) {
+      throw new IllegalArgumentException("メンバー間カレンダー閲覧機能が無効です。");
+    }
+
+    if (requester.getRoleLevel() != com.shiftscheduler.server.domain.RoleLevel.MEMBER
+        || requester.getGroup() == null
+        || target.getGroup() == null
+        || !requester.getGroup().getId().equals(target.getGroup().getId())) {
+      throw new IllegalArgumentException("同じグループのメンバーにのみ申請できます。");
+    }
 
     CalendarViewPermission permission = new CalendarViewPermission();
     permission.setRequesterStaff(requester);

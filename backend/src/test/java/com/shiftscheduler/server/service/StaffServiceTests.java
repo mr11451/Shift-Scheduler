@@ -36,6 +36,9 @@ class StaffServiceTests {
     @Mock
     private AccessControlService accessControlService;
 
+    @Mock
+    private SystemSettingService systemSettingService;
+
     @InjectMocks
     private StaffService staffService;
 
@@ -58,6 +61,7 @@ class StaffServiceTests {
         when(staffRepository.findAllByIsActiveTrue()).thenReturn(List.of(requester, approvedTarget, otherStaff));
         when(calendarViewPermissionRepository.findApprovedTargetStaffIds(1L, com.shiftscheduler.server.domain.CalendarViewPermissionStatus.APPROVED))
                 .thenReturn(List.of(2L));
+        when(systemSettingService.getSystemSettingBooleanValue("calendarViewPermissionEnabled")).thenReturn(true);
 
         List<Staff> result = staffService.getSelectableStaffsForRequester(1L);
 
@@ -99,6 +103,7 @@ class StaffServiceTests {
         when(staffRepository.findAllByIsActiveTrue()).thenReturn(List.of(requester, sameGroupStaff, approvedTarget, otherGroupStaff));
         when(calendarViewPermissionRepository.findApprovedTargetStaffIds(1L, com.shiftscheduler.server.domain.CalendarViewPermissionStatus.APPROVED))
                 .thenReturn(List.of(3L));
+        when(systemSettingService.getSystemSettingBooleanValue("calendarViewPermissionEnabled")).thenReturn(true);
 
         List<Staff> result = staffService.getSelectableStaffsForRequester(1L);
 
@@ -107,6 +112,63 @@ class StaffServiceTests {
         assertTrue(result.stream().anyMatch(staff -> staff.getId().equals(3L)));
         assertTrue(result.stream().noneMatch(staff -> staff.getId().equals(2L)));
         assertTrue(result.stream().noneMatch(staff -> staff.getId().equals(4L)));
+    }
+
+    @Test
+    void getCalendarViewPermissionTargets_includesSameGroupStaffWithAnyRoleWhenEnabled() {
+        Group group = new Group();
+        group.setId(100L);
+
+        Staff requester = new Staff();
+        requester.setId(1L);
+        requester.setRoleLevel(RoleLevel.MEMBER);
+        requester.setGroup(group);
+        requester.setIsActive(true);
+
+        Staff sameGroupMember = new Staff();
+        sameGroupMember.setId(2L);
+        sameGroupMember.setRoleLevel(RoleLevel.MEMBER);
+        sameGroupMember.setGroup(group);
+        sameGroupMember.setIsActive(true);
+
+        Staff sameGroupChief = new Staff();
+        sameGroupChief.setId(3L);
+        sameGroupChief.setRoleLevel(RoleLevel.CHIEF);
+        sameGroupChief.setGroup(group);
+        sameGroupChief.setIsActive(true);
+
+        Staff otherGroupMember = new Staff();
+        otherGroupMember.setId(4L);
+        otherGroupMember.setRoleLevel(RoleLevel.MEMBER);
+        Group otherGroup = new Group();
+        otherGroup.setId(200L);
+        otherGroupMember.setGroup(otherGroup);
+        otherGroupMember.setIsActive(true);
+
+        when(staffRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(staffRepository.findAllByIsActiveTrue()).thenReturn(List.of(requester, sameGroupMember, sameGroupChief, otherGroupMember));
+        when(systemSettingService.getSystemSettingBooleanValue("calendarViewPermissionEnabled")).thenReturn(true);
+
+        List<Staff> result = staffService.getCalendarViewPermissionTargets(1L);
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(staff -> staff.getId().equals(2L)));
+        assertTrue(result.stream().anyMatch(staff -> staff.getId().equals(3L)));
+        assertTrue(result.stream().noneMatch(staff -> staff.getId().equals(4L)));
+    }
+
+    @Test
+    void getCalendarViewPermissionTargets_returnsEmptyWhenFeatureIsDisabled() {
+        Staff requester = new Staff();
+        requester.setId(1L);
+        requester.setRoleLevel(RoleLevel.MEMBER);
+
+        when(staffRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(systemSettingService.getSystemSettingBooleanValue("calendarViewPermissionEnabled")).thenReturn(false);
+
+        List<Staff> result = staffService.getCalendarViewPermissionTargets(1L);
+
+        assertTrue(result.isEmpty());
     }
 
     @Test

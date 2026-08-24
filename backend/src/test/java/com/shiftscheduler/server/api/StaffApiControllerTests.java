@@ -29,6 +29,7 @@ import com.shiftscheduler.server.dto.StaffCreateResponse;
 import com.shiftscheduler.server.dto.StaffResponse;
 import com.shiftscheduler.server.dto.StaffUpdateRequest;
 import com.shiftscheduler.server.service.StaffService;
+import com.shiftscheduler.server.repository.StaffRepository;
 import com.shiftscheduler.server.util.JwtTokenUtil;
 
 @WebMvcTest(StaffApiController.class)
@@ -45,6 +46,9 @@ class StaffApiControllerTests {
 
     @MockBean
     private StaffService staffService;
+
+    @MockBean
+    private StaffRepository staffRepository;
 
     @Test
     void listStaffs_returnsList() throws Exception {
@@ -76,6 +80,25 @@ class StaffApiControllerTests {
         when(staffService.convertToResponse(staff)).thenReturn(toResponse(staff));
 
         mockMvc.perform(get("/api/staffs")
+                        .header("Authorization", AUTH_HEADER)
+                        .requestAttr("staffId", 7L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].staffCode").value("STF-00002"));
+    }
+
+    @Test
+    void listCalendarViewPermissionTargets_usesAuthenticatedRequester() throws Exception {
+        Staff staff = new Staff();
+        staff.setId(2L);
+        staff.setStaffCode("STF-00002");
+        staff.setStaffName("田中太郎");
+        staff.setRoleLevel(RoleLevel.MEMBER);
+        staff.setIsActive(true);
+        when(staffService.getCalendarViewPermissionTargets(7L)).thenReturn(List.of(staff));
+        when(staffService.convertToResponse(staff)).thenReturn(toResponse(staff));
+
+        mockMvc.perform(get("/api/staffs/permission-targets")
                         .header("Authorization", AUTH_HEADER)
                         .requestAttr("staffId", 7L))
                 .andExpect(status().isOk())

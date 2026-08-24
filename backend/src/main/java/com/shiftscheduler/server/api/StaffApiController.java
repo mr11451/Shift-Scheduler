@@ -63,6 +63,19 @@ public class StaffApiController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/permission-targets")
+    public ResponseEntity<List<StaffResponse>> listCalendarViewPermissionTargets(HttpServletRequest request) {
+        Long requesterStaffId = getAuthenticatedStaffId(request);
+        if (requesterStaffId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        List<StaffResponse> responses = staffService.getCalendarViewPermissionTargets(requesterStaffId).stream()
+                .map(staffService::convertToResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(responses);
+    }
+
     @PostMapping
     public ResponseEntity<StaffCreateResponse> createStaff(@RequestBody StaffCreateRequest request, HttpServletRequest httpRequest) {
         // Validate required fields

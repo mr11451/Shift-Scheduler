@@ -261,7 +261,8 @@ npm run dev
 - Flyway を使用しています
 - マイグレーションファイル配置先: `backend/src/main/resources/db/migration`
 - 初期スキーマ: `V001__001_initialize_schema.sql`
-- 認証関連: `V008__008_add_password_reset_tokens.sql`、`V009__009_add_password_changed_at.sql`
+- スキーマ追加・認証関連・初期設定: `V002__002_seed_dev_data.sql`
+- マイグレーションは `V001`（基礎スキーマ）と `V002`（追加スキーマ・初期値）の2ファイルに整理しています。旧V003〜V010の履歴があるDBは、DB再作成またはFlyway履歴のリセットが必要です
 - 既存DB導入時のため `spring.flyway.baseline-on-migrate=true` を設定済みです
 
 ローカルでサーバー起動時（`mvnw spring-boot:run`）または Docker 起動時に、未適用のマイグレーションが自動適用されます。

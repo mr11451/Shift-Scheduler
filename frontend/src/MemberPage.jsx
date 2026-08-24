@@ -19,7 +19,7 @@ const STATUS_LABELS = {
   CANCELED: "取り消し済",
 };
 
-function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendarDate, setCalendarDate, shiftAssignments, shiftRequests, holidayDates, holidayWeekdays, isMonthConfirmed }) {
+function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendarDate, setCalendarDate, shiftAssignments, shiftRequests, holidayDates, holidayWeekdays, isMonthConfirmed, calendarViewPermissionEnabled, isMember, permissionTargets, onRequestPermission }) {
   const monthKey = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}`;
   const monthStatus = getMonthStatus({ monthKey, isConfirmed: isMonthConfirmed });
   const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -90,9 +90,11 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
             </option>
           ))}
         </select>
-        <div style={{ marginTop: "0.35rem", color: "#6b7280", fontSize: "0.9rem" }}>
-          閲覧可能なスタッフはそのまま選択できます。承認が必要な相手は申請の確認ダイアログが表示されます。
-        </div>
+        {calendarViewPermissionEnabled && (
+          <div style={{ marginTop: "0.35rem", color: "#6b7280", fontSize: "0.9rem" }}>
+            閲覧したいスタッフを選択します。
+          </div>
+        )}
       </div>
 
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -156,11 +158,31 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
           ))}
         </tbody>
       </table>
+
+      {calendarViewPermissionEnabled && isMember && (
+        <div style={{ marginTop: "1rem", border: "1px solid var(--line)", borderRadius: "8px", padding: "0.75rem" }}>
+          <h3 style={{ margin: "0 0 0.75rem" }}>閲覧申請対象メンバー</h3>
+          {permissionTargets.length === 0 ? (
+            <p style={{ margin: 0, color: "#6b7280" }}>申請できるメンバーはいません。</p>
+          ) : (
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.5rem" }}>
+              {permissionTargets.map((staff) => (
+                <li key={staff.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
+                  <span>{staff.staffName}</span>
+                  <button type="button" onClick={() => onRequestPermission(staff.id)} style={{ padding: "0.4rem 0.7rem", border: "1px solid #2563eb", borderRadius: "6px", backgroundColor: "#eff6ff", color: "#1d4ed8", cursor: "pointer" }}>
+                    閲覧申請
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftTypeId, onSubmit, loading, message, messageType, shiftRequests, onDeleteRequest, onSubmitRequest, permissionRequests, onApprovePermission, onRejectPermission, onCancelPermission, approvedPermissions, onRemoveViewTarget, holidayDates, holidayWeekdays, isMonthConfirmed }) {
+function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftTypeId, onSubmit, loading, message, messageType, shiftRequests, onDeleteRequest, onSubmitRequest, calendarViewPermissionEnabled, permissionRequests, onApprovePermission, onRejectPermission, onCancelPermission, approvedPermissions, onRemoveViewTarget, holidayDates, holidayWeekdays, isMonthConfirmed }) {
   const sortedRequests = [...(shiftRequests || [])].sort((a, b) => (b.workDate || "").localeCompare(a.workDate || ""));
 
   return (
@@ -202,7 +224,7 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
       </button>
       {message && <div className={messageType}>{message}</div>}
 
-      <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--line)", paddingTop: "1rem" }}>
+      {calendarViewPermissionEnabled && <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--line)", paddingTop: "1rem" }}>
         <h3 style={{ margin: "0 0 0.75rem" }}>申請済み一覧</h3>
         {isMonthConfirmed && (
           <p style={{ margin: "0 0 0.75rem", color: "#6b7280" }}>この月はシフトが確定済みのため、新規登録はできませんが、申請内容は表示されます。</p>
@@ -249,9 +271,9 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
             ))}
           </ul>
         )}
-      </div>
+      </div>}
 
-      <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--line)", paddingTop: "1rem" }}>
+      {calendarViewPermissionEnabled && <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--line)", paddingTop: "1rem" }}>
         <h3 style={{ margin: "0 0 0.75rem" }}>閲覧承認申請</h3>
         {permissionRequests.length === 0 ? (
           <p style={{ margin: 0, color: "#6b7280" }}>閲覧承認の申請はありません。</p>
@@ -280,9 +302,9 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
             ))}
           </ul>
         )}
-      </div>
+      </div>}
 
-      <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--line)", paddingTop: "1rem" }}>
+      {calendarViewPermissionEnabled && <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--line)", paddingTop: "1rem" }}>
         <h3 style={{ margin: "0 0 0.75rem" }}>閲覧できるスタッフ一覧</h3>
         {approvedPermissions.length === 0 ? (
           <p style={{ margin: 0, color: "#6b7280" }}>現在閲覧できるスタッフはいません。</p>
@@ -298,7 +320,7 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
             ))}
           </ul>
         )}
-      </div>
+      </div>}
     </form>
   );
 }
@@ -315,6 +337,7 @@ export default function MemberPage() {
   const [submittedShiftRequests, setSubmittedShiftRequests] = useState([]);
   const [permissionRequests, setPermissionRequests] = useState([]);
   const [approvedPermissions, setApprovedPermissions] = useState([]);
+  const [permissionTargets, setPermissionTargets] = useState([]);
 
   const [selectedStaffId, setSelectedStaffId] = useState(auth?.staffId ? String(auth.staffId) : "");
   const [workDate, setWorkDate] = useState(today);
@@ -328,6 +351,7 @@ export default function MemberPage() {
   const [isCurrentMonthConfirmed, setIsCurrentMonthConfirmed] = useState(false);
   const [isSelectedDateConfirmed, setIsSelectedDateConfirmed] = useState(false);
   const [roleLabelMap, setRoleLabelMap] = useState({ ...DEFAULT_ROLE_LABELS });
+  const [calendarViewPermissionEnabled, setCalendarViewPermissionEnabled] = useState(false);
 
   const [currentView, setCurrentView] = useState("calendar");
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -341,6 +365,7 @@ export default function MemberPage() {
     loadShiftTypes();
     loadHolidayDates();
     loadRoleLabels();
+    loadCalendarViewPermissionSetting();
   }, []);
 
   useEffect(() => {
@@ -348,15 +373,17 @@ export default function MemberPage() {
   }, [calendarDate]);
 
   useEffect(() => {
-    if (auth?.staffId) {
+    if (auth?.staffId && calendarViewPermissionEnabled) {
       loadApprovedPermissions();
       loadPermissionRequests();
+      loadPermissionTargets();
     } else {
       setApprovedTargetStaffIds([]);
       setPermissionRequests([]);
       setApprovedPermissions([]);
+      setPermissionTargets([]);
     }
-  }, [auth?.staffId]);
+  }, [auth?.staffId, calendarViewPermissionEnabled]);
 
   useEffect(() => {
     if (!auth?.staffId) {
@@ -453,6 +480,18 @@ export default function MemberPage() {
     }
   }
 
+  async function loadPermissionTargets() {
+    if (!auth?.staffId) return;
+    try {
+      const res = await fetchWithAuth("/api/staffs/permission-targets");
+      if (!res.ok) throw new Error("閲覧申請対象一覧の取得に失敗しました。");
+      const targets = await res.json();
+      setPermissionTargets(Array.isArray(targets) ? targets : []);
+    } catch (e) {
+      showMessage(e.message, "error");
+    }
+  }
+
   async function loadShiftTypes() {
     try {
       const res = await fetchWithAuth("/api/shift-types/active");
@@ -493,6 +532,17 @@ export default function MemberPage() {
       setRoleLabelMap(parseRoleLabels(setting?.settingValueText || ""));
     } catch {
       setRoleLabelMap({ ...DEFAULT_ROLE_LABELS });
+    }
+  }
+
+  async function loadCalendarViewPermissionSetting() {
+    try {
+      const res = await fetchWithAuth("/api/system-settings/calendarViewPermissionEnabled");
+      if (!res.ok) return;
+      const setting = await res.json();
+      setCalendarViewPermissionEnabled(Boolean(setting?.settingValueBoolean));
+    } catch {
+      setCalendarViewPermissionEnabled(false);
     }
   }
 
@@ -566,6 +616,7 @@ export default function MemberPage() {
   }
 
   async function requestPermission(targetStaffId) {
+    if (!calendarViewPermissionEnabled) return;
     try {
       const res = await fetchWithAuth("/api/calendar-view-permissions", {
         method: "POST",
@@ -580,6 +631,7 @@ export default function MemberPage() {
       }
       showMessage("閲覧承認を申請しました。承認までお待ちください。", "success");
       await loadApprovedPermissions();
+      await loadPermissionTargets();
       setSelectedStaffId(String(auth?.staffId || ""));
     } catch (e) {
       showMessage(e.message, "error");
@@ -629,6 +681,11 @@ export default function MemberPage() {
     }
 
     const targetName = targetStaff?.staffName || "指定されたスタッフ";
+    if (!calendarViewPermissionEnabled) {
+      setSelectedStaffId(String(auth?.staffId || ""));
+      return;
+    }
+
     const shouldRequest = window.confirm(`${targetName}さんの閲覧承認を申請しますか？`);
     if (!shouldRequest) {
       setSelectedStaffId(String(auth?.staffId || ""));
@@ -810,6 +867,10 @@ export default function MemberPage() {
             holidayDates={holidayDates}
             holidayWeekdays={holidayWeekdays}
             isMonthConfirmed={isCurrentMonthConfirmed}
+            calendarViewPermissionEnabled={calendarViewPermissionEnabled}
+            isMember={auth?.roleLevel === "MEMBER"}
+            permissionTargets={permissionTargets}
+            onRequestPermission={requestPermission}
           />
         ) : (
           <FormView
@@ -826,6 +887,7 @@ export default function MemberPage() {
             onDeleteRequest={handleDeleteRequest}
             onSubmitRequest={handleSubmitRequest}
 
+            calendarViewPermissionEnabled={calendarViewPermissionEnabled}
             permissionRequests={permissionRequests}
             onApprovePermission={(permissionId) => handlePermissionAction(permissionId, "approve")}
             onRejectPermission={(permissionId) => handlePermissionAction(permissionId, "reject")}

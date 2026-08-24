@@ -393,7 +393,7 @@
 
 ## Flywayマイグレーション案
 
-- `V001__001_initialize_schema.sql` から `V009__009_add_password_changed_at.sql`
+- `V001__001_initialize_schema.sql` と `V002__002_seed_dev_data.sql`
 
 ## 受け入れ条件
 
