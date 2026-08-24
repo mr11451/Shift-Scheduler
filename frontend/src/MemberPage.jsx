@@ -19,7 +19,9 @@ const STATUS_LABELS = {
   CANCELED: "取り消し済",
 };
 
-function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendarDate, setCalendarDate, shiftAssignments, shiftRequests, holidayDates, holidayWeekdays, isMonthConfirmed, calendarViewPermissionEnabled, isMember, permissionTargets, onRequestPermission }) {
+function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendarDate, setCalendarDate, shiftAssignments, shiftRequests, holidayDates, holidayWeekdays, isMonthConfirmed, calendarViewPermissionEnabled, isMember, permissionTargets, submittedPermissionTargetIds, onRequestPermission }) {
+  const [selectedPermissionTargetId, setSelectedPermissionTargetId] = useState("");
+  const selectedPermissionIsSubmitted = submittedPermissionTargetIds.includes(Number(selectedPermissionTargetId));
   const monthKey = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}`;
   const monthStatus = getMonthStatus({ monthKey, isConfirmed: isMonthConfirmed });
   const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -165,16 +167,32 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
           {permissionTargets.length === 0 ? (
             <p style={{ margin: 0, color: "#6b7280" }}>申請できるメンバーはいません。</p>
           ) : (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.5rem" }}>
-              {permissionTargets.map((staff) => (
-                <li key={staff.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
-                  <span>{staff.staffName}</span>
-                  <button type="button" onClick={() => onRequestPermission(staff.id)} style={{ padding: "0.4rem 0.7rem", border: "1px solid #2563eb", borderRadius: "6px", backgroundColor: "#eff6ff", color: "#1d4ed8", cursor: "pointer" }}>
-                    閲覧申請
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <select
+                value={selectedPermissionTargetId}
+                onChange={(event) => setSelectedPermissionTargetId(event.target.value)}
+                style={{ flex: 1 }}
+              >
+                <option value="">-- メンバーを選択 --</option>
+                {permissionTargets.map((staff) => (
+                  <option key={staff.id} value={staff.id}>
+                    {staff.staffName}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!selectedPermissionTargetId || selectedPermissionIsSubmitted) return;
+                  onRequestPermission(selectedPermissionTargetId);
+                  setSelectedPermissionTargetId("");
+                }}
+                disabled={!selectedPermissionTargetId || selectedPermissionIsSubmitted}
+                style={{ padding: "0.4rem 0.7rem", border: "1px solid #2563eb", borderRadius: "6px", backgroundColor: "#eff6ff", color: "#1d4ed8", cursor: selectedPermissionTargetId && !selectedPermissionIsSubmitted ? "pointer" : "not-allowed", opacity: selectedPermissionTargetId && !selectedPermissionIsSubmitted ? 1 : 0.6 }}
+              >
+                {selectedPermissionIsSubmitted ? "申請済" : "閲覧申請"}
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -338,6 +356,7 @@ export default function MemberPage() {
   const [permissionRequests, setPermissionRequests] = useState([]);
   const [approvedPermissions, setApprovedPermissions] = useState([]);
   const [permissionTargets, setPermissionTargets] = useState([]);
+  const [submittedPermissionTargetIds, setSubmittedPermissionTargetIds] = useState([]);
 
   const [selectedStaffId, setSelectedStaffId] = useState(auth?.staffId ? String(auth.staffId) : "");
   const [workDate, setWorkDate] = useState(today);
@@ -377,11 +396,13 @@ export default function MemberPage() {
       loadApprovedPermissions();
       loadPermissionRequests();
       loadPermissionTargets();
+      loadSubmittedPermissionRequests();
     } else {
       setApprovedTargetStaffIds([]);
       setPermissionRequests([]);
       setApprovedPermissions([]);
       setPermissionTargets([]);
+      setSubmittedPermissionTargetIds([]);
     }
   }, [auth?.staffId, calendarViewPermissionEnabled]);
 
@@ -475,6 +496,20 @@ export default function MemberPage() {
       const res = await fetchWithAuth(`/api/calendar-view-permissions/target/${auth.staffId}/status/PENDING`);
       if (!res.ok) throw new Error("閲覧申請一覧の取得に失敗しました。");
       setPermissionRequests(await res.json());
+    } catch (e) {
+      showMessage(e.message, "error");
+    }
+  }
+
+  async function loadSubmittedPermissionRequests() {
+    if (!auth?.staffId) return;
+    try {
+      const res = await fetchWithAuth(`/api/calendar-view-permissions/requester/${auth.staffId}/status/PENDING`);
+      if (!res.ok) throw new Error("申請済み閲覧対象一覧の取得に失敗しました。");
+      const permissions = await res.json();
+      setSubmittedPermissionTargetIds(
+        Array.isArray(permissions) ? permissions.map((permission) => Number(permission.targetStaffId)) : []
+      );
     } catch (e) {
       showMessage(e.message, "error");
     }
@@ -631,6 +666,7 @@ export default function MemberPage() {
       }
       showMessage("閲覧承認を申請しました。承認までお待ちください。", "success");
       await loadApprovedPermissions();
+      await loadSubmittedPermissionRequests();
       await loadPermissionTargets();
       setSelectedStaffId(String(auth?.staffId || ""));
     } catch (e) {
@@ -870,6 +906,7 @@ export default function MemberPage() {
             calendarViewPermissionEnabled={calendarViewPermissionEnabled}
             isMember={auth?.roleLevel === "MEMBER"}
             permissionTargets={permissionTargets}
+            submittedPermissionTargetIds={[...submittedPermissionTargetIds, ...approvedTargetStaffIds.map((staffId) => Number(staffId))]}
             onRequestPermission={requestPermission}
           />
         ) : (
