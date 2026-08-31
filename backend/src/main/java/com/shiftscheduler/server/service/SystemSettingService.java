@@ -67,12 +67,18 @@ public class SystemSettingService {
 
   @Transactional
   public SystemSettingResponse updateSystemSettingText(Long updaterStaffId, String settingKey, String value) {
-    // Check MASTER privilege
     Staff updater = staffRepository.findById(updaterStaffId)
         .orElseThrow(() -> new IllegalArgumentException("更新者スタッフが見つかりません。"));
 
+    String valueToSave = value;
+
     if (!accessControlService.isMaster(updater)) {
-      throw new IllegalArgumentException("マスターのみシステム設定を更新できます。");
+      // CHIEF may only update their own group's auto-generation rule; every other setting stays MASTER-only.
+      if (!AUTO_SHIFT_GENERATION_RULES_KEY.equals(settingKey) || !accessControlService.isChief(updater)) {
+        throw new IllegalArgumentException("マスターのみシステム設定を更新できます。");
+      }
+
+      valueToSave = mergeGroupRuleForChief(updater, value);
     }
 
     SystemSetting setting = systemSettingRepository.findBySettingKey(settingKey)
@@ -82,12 +88,46 @@ public class SystemSettingService {
       setting.setSettingKey(settingKey);
     }
 
-    setting.setSettingValueText(value);
+    setting.setSettingValueText(valueToSave);
     setting.setUpdatedBy(updater);
     setting.setUpdatedAt(OffsetDateTime.now());
 
     SystemSetting saved = systemSettingRepository.save(setting);
     return convertToResponse(saved);
+  }
+
+  /**
+   * Rebuild the full autoShiftGenerationRules JSON from the persisted value, replacing only the
+   * requesting CHIEF's own group entry. This prevents a CHIEF payload from altering the default
+   * rules or any other group's rules, even if the submitted JSON contains such changes.
+   */
+  private String mergeGroupRuleForChief(Staff updater, String incomingJson) {
+    Long groupId = updater.getGroup() != null ? updater.getGroup().getId() : null;
+    if (groupId == null) {
+      throw new IllegalArgumentException("グループに所属していないため自動生成ルールを更新できません。");
+    }
+
+    JsonNode incomingGroupRule;
+    try {
+      JsonNode incoming = objectMapper.readTree(incomingJson);
+      JsonNode incomingGroupRules = incoming.path("groupRules");
+      incomingGroupRule = incomingGroupRules.get(String.valueOf(groupId));
+    } catch (Exception e) {
+      throw new IllegalArgumentException("自動生成ルールの形式が不正です。");
+    }
+
+    if (incomingGroupRule == null || incomingGroupRule.isMissingNode()) {
+      throw new IllegalArgumentException("自分のグループのルールが指定されていません。");
+    }
+
+    ObjectNode root = createRulesRoot(getSystemSettingTextValue(AUTO_SHIFT_GENERATION_RULES_KEY));
+    if (!root.has("defaultRules")) {
+      root.set("defaultRules", objectMapper.createObjectNode());
+    }
+    ObjectNode groupRulesNode = root.with("groupRules");
+    groupRulesNode.set(String.valueOf(groupId), incomingGroupRule);
+
+    return root.toString();
   }
 
   public SystemSettingResponse getSystemSettingByKey(String settingKey) {

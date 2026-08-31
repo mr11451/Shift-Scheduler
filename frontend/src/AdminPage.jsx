@@ -38,6 +38,7 @@ export default function AdminPage() {
         setLoginProfile({
           staffName: staff.staffName,
           roleLevel: staff.roleLevel,
+          groupId: staff.groupId,
         });
       } catch {
         // Keep existing auth display when profile fetch fails.
@@ -73,13 +74,16 @@ export default function AdminPage() {
     ? `${loginSource.staffName || "不明"} / ${roleLabelMap[loginSource.roleLevel] || loginSource.roleLevel || "不明"}`
     : null;
 
+  const isMasterRole = String(loginSource?.roleLevel || "").toUpperCase() === "MASTER";
+  const isChiefRole = String(loginSource?.roleLevel || "").toUpperCase() === "CHIEF";
+
   const tabs = [
     { id: "staff", label: "スタッフ管理" },
     { id: "qualification", label: "資格管理" },
     { id: "shiftType", label: "シフト種類管理" },
     { id: "autoShiftRule", label: "自動生成ルール" },
     { id: "systemSetting", label: "システム設定" },
-  ];
+  ].filter((tab) => tab.id !== "systemSetting" || isMasterRole);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -90,9 +94,15 @@ export default function AdminPage() {
       case "shiftType":
         return <AdminShiftTypeTab />;
       case "autoShiftRule":
-        return <AdminAutoShiftRuleTab onCancel={() => setActiveTab("staff")} />;
+        return (
+          <AdminAutoShiftRuleTab
+            onCancel={() => setActiveTab("staff")}
+            restrictToOwnGroup={isChiefRole}
+            ownGroupId={loginSource?.groupId ?? null}
+          />
+        );
       case "systemSetting":
-        return <AdminSystemSettingTab onCancel={() => setActiveTab("staff")} />;
+        return isMasterRole ? <AdminSystemSettingTab onCancel={() => setActiveTab("staff")} /> : <AdminStaffTab />;
       default:
         return <AdminStaffTab />;
     }

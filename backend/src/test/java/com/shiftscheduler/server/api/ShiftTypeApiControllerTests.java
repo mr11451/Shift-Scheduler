@@ -1,9 +1,18 @@
 package com.shiftscheduler.server.api;
 
+import java.time.LocalTime;
+import java.util.List;
+
 import static org.hamcrest.Matchers.hasSize;
+import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -12,17 +21,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shiftscheduler.server.domain.ShiftType;
+import com.shiftscheduler.server.repository.StaffRepository;
 import com.shiftscheduler.server.service.ShiftTypeService;
-import java.time.LocalTime;
-import java.util.List;
-import java.util.Optional;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ShiftTypeApiController.class)
 class ShiftTypeApiControllerTests {
@@ -35,6 +35,9 @@ class ShiftTypeApiControllerTests {
 
     @MockBean
     private ShiftTypeService shiftTypeService;
+
+    @MockBean
+    private StaffRepository staffRepository;
 
     @Test
     void getAllShiftTypes_returnsList() throws Exception {
@@ -74,7 +77,7 @@ class ShiftTypeApiControllerTests {
         response.setSortOrder(1);
         response.setIsActive(true);
 
-        when(shiftTypeService.createShiftType(any(ShiftTypeCreateRequest.class))).thenReturn(response);
+        when(shiftTypeService.createShiftType(eq(1L), any(ShiftTypeCreateRequest.class))).thenReturn(response);
 
         ShiftTypeCreateRequest request = new ShiftTypeCreateRequest(
                 "A",
@@ -87,7 +90,8 @@ class ShiftTypeApiControllerTests {
 
         mockMvc.perform(post("/api/shift-types")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(objectMapper.writeValueAsString(request))
+                        .requestAttr("staffId", 1L))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.shiftCode").value("A"))
                 .andExpect(jsonPath("$.shiftName").value("早番"));
@@ -102,7 +106,7 @@ class ShiftTypeApiControllerTests {
         response.setSortOrder(2);
         response.setIsActive(false);
 
-        when(shiftTypeService.updateShiftType(eq(1L), any(ShiftTypeUpdateRequest.class))).thenReturn(response);
+        when(shiftTypeService.updateShiftType(eq(1L), any(ShiftTypeUpdateRequest.class), eq(1L))).thenReturn(response);
 
         ShiftTypeUpdateRequest request = new ShiftTypeUpdateRequest(
                 "B",
@@ -116,7 +120,8 @@ class ShiftTypeApiControllerTests {
 
         mockMvc.perform(put("/api/shift-types/1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(objectMapper.writeValueAsString(request))
+                        .requestAttr("staffId", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.shiftCode").value("B"))
                 .andExpect(jsonPath("$.shiftName").value("遅番"));
@@ -129,9 +134,10 @@ class ShiftTypeApiControllerTests {
                 response.setShiftCode("A");
                 response.setShiftName("早番");
                 response.setIsActive(false);
-                when(shiftTypeService.deactivateShiftType(1L)).thenReturn(response);
+                when(shiftTypeService.deactivateShiftType(1L, 1L)).thenReturn(response);
 
-        mockMvc.perform(delete("/api/shift-types/1"))
+        mockMvc.perform(delete("/api/shift-types/1")
+                        .requestAttr("staffId", 1L))
                 .andExpect(status().isNoContent());
     }
 }

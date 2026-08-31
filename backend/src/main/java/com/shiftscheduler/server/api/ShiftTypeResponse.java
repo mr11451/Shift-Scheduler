@@ -12,6 +12,8 @@ public class ShiftTypeResponse {
   private Boolean isOffType;
   private Boolean isActive;
   private Integer sortOrder;
+  private Long createdByStaffId;
+  private String createdByStaffName;
 
   public ShiftTypeResponse() {}
 
@@ -88,6 +90,22 @@ public class ShiftTypeResponse {
 
   public void setSortOrder(Integer sortOrder) {
     this.sortOrder = sortOrder;
+  }
+
+  public Long getCreatedByStaffId() {
+    return createdByStaffId;
+  }
+
+  public void setCreatedByStaffId(Long createdByStaffId) {
+    this.createdByStaffId = createdByStaffId;
+  }
+
+  public String getCreatedByStaffName() {
+    return createdByStaffName;
+  }
+
+  public void setCreatedByStaffName(String createdByStaffName) {
+    this.createdByStaffName = createdByStaffName;
   }
 
   @Override

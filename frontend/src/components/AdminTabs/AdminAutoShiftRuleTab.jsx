@@ -14,7 +14,7 @@ const DEFAULT_RULES = {
   existingShiftHandling: "ONLY_EMPTY",
 };
 
-export default function AdminAutoShiftRuleTab({ onCancel }) {
+export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = false, ownGroupId = null }) {
   const [shiftTypes, setShiftTypes] = useState([]);
   const [groups, setGroups] = useState([]);
   const [selectedScope, setSelectedScope] = useState(DEFAULT_SCOPE);
@@ -98,10 +98,12 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
       setDefaultRules(loadedDefaultRules);
       setGroupRules(loadedGroupRules);
 
-      const nextSelectedScope = selectedScope !== DEFAULT_SCOPE
-        && loadedGroups.some((group) => String(group.id) === String(selectedScope))
-          ? selectedScope
-          : DEFAULT_SCOPE;
+      const nextSelectedScope = restrictToOwnGroup
+        ? (ownGroupId != null ? String(ownGroupId) : DEFAULT_SCOPE)
+        : (selectedScope !== DEFAULT_SCOPE
+          && loadedGroups.some((group) => String(group.id) === String(selectedScope))
+            ? selectedScope
+            : DEFAULT_SCOPE);
       setSelectedScope(nextSelectedScope);
       setRules(nextSelectedScope === DEFAULT_SCOPE ? loadedDefaultRules : (loadedGroupRules[String(nextSelectedScope)] || loadedDefaultRules));
       setMessage("");
@@ -153,6 +155,10 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
   }
 
   function handleScopeChange(e) {
+    if (restrictToOwnGroup) {
+      return;
+    }
+
     const nextScope = e.target.value;
     setSelectedScope(nextScope);
     if (nextScope === DEFAULT_SCOPE) {
@@ -265,6 +271,12 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
         自動シフト生成に使う基本ルールを管理します。デフォルトルールに加えて、グループ別ルールも設定できます。
       </p>
 
+      {restrictToOwnGroup && ownGroupId == null && (
+        <div className="error" style={{ marginBottom: "1rem", padding: "0.75rem", borderRadius: "4px" }}>
+          所属グループが設定されていないため、自動生成ルールを設定できません。
+        </div>
+      )}
+
       {message && (
         <div className={messageType} style={{ marginBottom: "1rem", padding: "0.75rem", borderRadius: "4px", whiteSpace: "pre-line" }}>
           {message}
@@ -296,17 +308,22 @@ export default function AdminAutoShiftRuleTab({ onCancel }) {
               <select
                 value={selectedScope}
                 onChange={handleScopeChange}
+                disabled={restrictToOwnGroup}
                 style={{ width: "fit-content", minWidth: 0, display: "inline-block", padding: "0.6rem", border: "1px solid var(--line)", borderRadius: "4px" }}
               >
-                <option value={DEFAULT_SCOPE}>デフォルト（全体）</option>
-                {groups.map((group) => (
-                  <option key={group.id} value={String(group.id)}>
-                    グループ: {group.groupName}
-                  </option>
-                ))}
+                {!restrictToOwnGroup && <option value={DEFAULT_SCOPE}>デフォルト（全体）</option>}
+                {groups
+                  .filter((group) => !restrictToOwnGroup || String(group.id) === String(ownGroupId))
+                  .map((group) => (
+                    <option key={group.id} value={String(group.id)}>
+                      グループ: {group.groupName}
+                    </option>
+                  ))}
               </select>
               <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>
-                グループ別ルールが未設定の場合は、デフォルトルールが適用されます。
+                {restrictToOwnGroup
+                  ? "チーフ権限では自分のグループのルールのみ設定できます。"
+                  : "グループ別ルールが未設定の場合は、デフォルトルールが適用されます。"}
               </span>
             </label>
           </div>

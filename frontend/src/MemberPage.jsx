@@ -847,6 +847,11 @@ export default function MemberPage() {
         </p>
       )}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", margin: "-0.5rem 0 1rem" }}>
+        {String(auth?.roleLevel || "").toUpperCase() !== "MEMBER" && (
+          <button type="button" onClick={() => navigate("/admin")} style={{ padding: "0.45rem 0.7rem" }}>
+            管理画面へ
+          </button>
+        )}
         <button type="button" onClick={requestPasswordReset} style={{ padding: "0.45rem 0.7rem" }}>
           自分のパスワードを変更
         </button>

@@ -1,19 +1,21 @@
 package com.shiftscheduler.server.service;
 
-import com.shiftscheduler.server.api.ShiftTypeCreateRequest;
-import com.shiftscheduler.server.api.ShiftTypeResponse;
-import com.shiftscheduler.server.api.ShiftTypeUpdateRequest;
-import com.shiftscheduler.server.domain.ShiftType;
-import com.shiftscheduler.server.repository.ShiftTypeRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.shiftscheduler.server.api.ShiftTypeCreateRequest;
+import com.shiftscheduler.server.api.ShiftTypeResponse;
+import com.shiftscheduler.server.api.ShiftTypeUpdateRequest;
+import com.shiftscheduler.server.domain.ShiftType;
+import com.shiftscheduler.server.domain.Staff;
+import com.shiftscheduler.server.repository.ShiftTypeRepository;
+import com.shiftscheduler.server.repository.StaffRepository;
 
 @Service
 public class ShiftTypeService {
@@ -24,8 +26,17 @@ public class ShiftTypeService {
   @Autowired
   private SystemSettingService systemSettingService;
 
+  @Autowired
+  private StaffRepository staffRepository;
+
+  @Autowired
+  private AccessControlService accessControlService;
+
   @Transactional
-  public ShiftTypeResponse createShiftType(ShiftTypeCreateRequest request) {
+  public ShiftTypeResponse createShiftType(Long creatorStaffId, ShiftTypeCreateRequest request) {
+    Staff creator = staffRepository.findById(creatorStaffId)
+        .orElseThrow(() -> new IllegalArgumentException("作成者スタッフが見つかりません。"));
+
     // Validate required fields
     if (request.getShiftCode() == null || request.getShiftCode().trim().isEmpty()) {
       throw new IllegalArgumentException("シフトコードは必須です。");
@@ -48,6 +59,7 @@ public class ShiftTypeService {
     shiftType.setIsOffType(request.getIsOffType() != null ? request.getIsOffType() : false);
     shiftType.setIsActive(true);
     shiftType.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
+    shiftType.setCreatedBy(creator);
     shiftType.setCreatedAt(OffsetDateTime.now());
     shiftType.setUpdatedAt(OffsetDateTime.now());
 
@@ -56,12 +68,14 @@ public class ShiftTypeService {
   }
 
   @Transactional
-  public ShiftTypeResponse updateShiftType(Long shiftTypeId, ShiftTypeUpdateRequest request) {
+  public ShiftTypeResponse updateShiftType(Long shiftTypeId, ShiftTypeUpdateRequest request, Long requesterStaffId) {
     ShiftType shiftType =
         shiftTypeRepository
             .findById(shiftTypeId)
             .orElseThrow(
                 () -> new IllegalArgumentException("シフトタイプが見つかりません: " + shiftTypeId));
+
+    ensureCanManage(shiftType, requesterStaffId);
 
     // Update shift code if provided
     if (request.getShiftCode() != null && !request.getShiftCode().trim().isEmpty()) {
@@ -151,12 +165,14 @@ public class ShiftTypeService {
   }
 
   @Transactional
-  public ShiftTypeResponse deactivateShiftType(Long shiftTypeId) {
+  public ShiftTypeResponse deactivateShiftType(Long shiftTypeId, Long requesterStaffId) {
     ShiftType shiftType =
         shiftTypeRepository
             .findById(shiftTypeId)
             .orElseThrow(
                 () -> new IllegalArgumentException("シフトタイプが見つかりません: " + shiftTypeId));
+
+    ensureCanManage(shiftType, requesterStaffId);
 
     shiftType.setIsActive(false);
     shiftType.setUpdatedAt(OffsetDateTime.now());
@@ -167,12 +183,14 @@ public class ShiftTypeService {
   }
 
   @Transactional
-  public ShiftTypeResponse reactivateShiftType(Long shiftTypeId) {
+  public ShiftTypeResponse reactivateShiftType(Long shiftTypeId, Long requesterStaffId) {
     ShiftType shiftType =
         shiftTypeRepository
             .findById(shiftTypeId)
             .orElseThrow(
                 () -> new IllegalArgumentException("シフトタイプが見つかりません: " + shiftTypeId));
+
+    ensureCanManage(shiftType, requesterStaffId);
 
     shiftType.setIsActive(true);
     shiftType.setUpdatedAt(OffsetDateTime.now());
@@ -185,6 +203,26 @@ public class ShiftTypeService {
     return shiftTypeRepository.findByShiftCode(shiftCode).isPresent();
   }
 
+  /**
+   * MASTER can manage any shift type; CHIEF can only manage the ones they created.
+   */
+  private void ensureCanManage(ShiftType shiftType, Long requesterStaffId) {
+    Staff requester = staffRepository.findById(requesterStaffId)
+        .orElseThrow(() -> new IllegalArgumentException("更新者スタッフが見つかりません。"));
+
+    if (accessControlService.isMaster(requester)) {
+      return;
+    }
+
+    if (accessControlService.isChief(requester)
+        && shiftType.getCreatedBy() != null
+        && shiftType.getCreatedBy().getId().equals(requester.getId())) {
+      return;
+    }
+
+    throw new IllegalArgumentException("この操作を行う権限がありません。");
+  }
+
   private ShiftTypeResponse convertToResponse(ShiftType shiftType) {
     ShiftTypeResponse response = new ShiftTypeResponse();
     response.setId(shiftType.getId());
@@ -195,6 +233,10 @@ public class ShiftTypeService {
     response.setIsOffType(shiftType.getIsOffType());
     response.setIsActive(shiftType.getIsActive());
     response.setSortOrder(shiftType.getSortOrder());
+    if (shiftType.getCreatedBy() != null) {
+      response.setCreatedByStaffId(shiftType.getCreatedBy().getId());
+      response.setCreatedByStaffName(shiftType.getCreatedBy().getStaffName());
+    }
     return response;
   }
 }

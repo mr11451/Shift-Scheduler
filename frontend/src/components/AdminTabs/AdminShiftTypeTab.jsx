@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { fetchWithAuth } from "../../utils/fetchWithAuth";
+import { AuthContext } from "../../context/AuthContext";
 
 export default function AdminShiftTypeTab() {
+  const { auth } = useContext(AuthContext);
+  const isChiefRole = String(auth?.roleLevel || "").toUpperCase() === "CHIEF";
   const [shiftTypes, setShiftTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -41,6 +44,10 @@ export default function AdminShiftTypeTab() {
   }
 
   function handleEdit(shiftType) {
+    if (isChiefRole) {
+      return;
+    }
+
     setForm({
       shiftCode: shiftType.shiftCode,
       shiftName: shiftType.shiftName,
@@ -78,6 +85,12 @@ export default function AdminShiftTypeTab() {
     e.preventDefault();
     setMessage("");
     setMessageType("");
+
+    if (isChiefRole && editingId) {
+      setMessage("チーフ権限では新規追加のみ行えます。");
+      setMessageType("error");
+      return;
+    }
 
     if (!form.shiftCode.trim()) {
       setMessage("シフト記号は必須です。");
@@ -119,6 +132,10 @@ export default function AdminShiftTypeTab() {
   }
 
   async function handleToggleActive(shiftType) {
+    if (isChiefRole) {
+      return;
+    }
+
     const isActive = shiftType.isActive !== false;
     const actionLabel = isActive ? "無効化" : "有効化";
     if (!window.confirm(`このシフト種類を${actionLabel}してもよろしいですか？`)) return;
@@ -205,37 +222,43 @@ export default function AdminShiftTypeTab() {
                     <td style={{ textAlign: "center", padding: "0.5rem" }}>{st.sortOrder}</td>
                     <td style={{ textAlign: "center", padding: "0.5rem" }}>{st.isActive ? "有効" : "無効"}</td>
                     <td style={{ textAlign: "center", padding: "0.5rem" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(st)}
-                        style={{
-                          padding: "0.4rem 0.8rem",
-                          marginRight: "0.5rem",
-                          backgroundColor: "var(--accent)",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        編集
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(st)}
-                        style={{
-                          padding: "0.4rem 0.8rem",
-                          backgroundColor: st.isActive ? "#d9534f" : "#198754",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        {st.isActive ? "無効化" : "有効化"}
-                      </button>
+                      {isChiefRole ? (
+                        "-"
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(st)}
+                            style={{
+                              padding: "0.4rem 0.8rem",
+                              marginRight: "0.5rem",
+                              backgroundColor: "var(--accent)",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              fontSize: "0.9rem",
+                            }}
+                          >
+                            編集
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleActive(st)}
+                            style={{
+                              padding: "0.4rem 0.8rem",
+                              backgroundColor: st.isActive ? "#d9534f" : "#198754",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              fontSize: "0.9rem",
+                            }}
+                          >
+                            {st.isActive ? "無効化" : "有効化"}
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))
