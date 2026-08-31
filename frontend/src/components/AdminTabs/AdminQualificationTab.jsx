@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { fetchWithAuth } from "../../utils/fetchWithAuth";
 
+// Admin tab for CRUD management of qualifications (list + create/edit form).
 export default function AdminQualificationTab() {
   const [qualifications, setQualifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +21,7 @@ export default function AdminQualificationTab() {
     loadQualifications();
   }, []);
 
+  // Fetch the full qualification list from the API.
   async function loadQualifications() {
     try {
       setLoading(true);
@@ -34,6 +36,7 @@ export default function AdminQualificationTab() {
     }
   }
 
+  // Populate the form with an existing qualification's values and switch to edit view.
   function handleEdit(qualification) {
     setForm({
       qualificationCode: qualification.qualificationCode,
@@ -46,6 +49,7 @@ export default function AdminQualificationTab() {
     setView("form");
   }
 
+  // Reset the form for creating a brand-new qualification.
   function handleNewQualification() {
     setForm({
       qualificationCode: "",
@@ -58,6 +62,7 @@ export default function AdminQualificationTab() {
     setView("form");
   }
 
+  // Sync a form field's value (or checkbox state) into local form state.
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
     setForm((prev) => ({
@@ -66,6 +71,7 @@ export default function AdminQualificationTab() {
     }));
   }
 
+  // Validate and submit the create/update form to the API.
   async function handleSubmit(e) {
     e.preventDefault();
     setMessage("");
@@ -103,6 +109,7 @@ export default function AdminQualificationTab() {
     }
   }
 
+  // Delete a qualification after user confirmation.
   async function handleDelete(id) {
     if (!window.confirm("この資格を削除してもよろしいですか？")) return;
     try {

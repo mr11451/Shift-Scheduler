@@ -1,18 +1,19 @@
 package com.shiftscheduler.server.service;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.shiftscheduler.server.api.QualificationCreateRequest;
 import com.shiftscheduler.server.api.QualificationResponse;
 import com.shiftscheduler.server.api.QualificationUpdateRequest;
 import com.shiftscheduler.server.domain.Qualification;
 import com.shiftscheduler.server.repository.QualificationRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class QualificationService {
@@ -20,6 +21,9 @@ public class QualificationService {
   @Autowired
   private QualificationRepository qualificationRepository;
 
+  /**
+   * Create a new qualification after validating the name and uniqueness.
+   */
   @Transactional
   public QualificationResponse createQualification(QualificationCreateRequest request) {
     // Validate required fields
@@ -44,6 +48,9 @@ public class QualificationService {
     return convertToResponse(saved);
   }
 
+  /**
+   * Update an existing qualification's editable fields, enforcing name uniqueness.
+   */
   @Transactional
   public QualificationResponse updateQualification(Long qualificationId, QualificationUpdateRequest request) {
     Qualification qualification =
@@ -80,6 +87,9 @@ public class QualificationService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Look up a qualification by ID.
+   */
   public QualificationResponse getQualificationById(Long qualificationId) {
     Qualification qualification =
         qualificationRepository
@@ -89,6 +99,9 @@ public class QualificationService {
     return convertToResponse(qualification);
   }
 
+  /**
+   * Look up a qualification by its unique name.
+   */
   public QualificationResponse getQualificationByName(String qualificationName) {
     Qualification qualification =
         qualificationRepository
@@ -100,6 +113,9 @@ public class QualificationService {
     return convertToResponse(qualification);
   }
 
+  /**
+   * List every qualification regardless of active status.
+   */
   public List<QualificationResponse> getAllQualifications() {
     return qualificationRepository.findAll()
         .stream()
@@ -107,6 +123,9 @@ public class QualificationService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * List only active qualifications.
+   */
   public List<QualificationResponse> getAllActiveQualifications() {
     return qualificationRepository.findAllActive()
         .stream()
@@ -114,6 +133,9 @@ public class QualificationService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Soft-delete a qualification by flipping its active flag off.
+   */
   @Transactional
   public QualificationResponse deactivateQualification(Long qualificationId) {
     Qualification qualification =
@@ -129,6 +151,9 @@ public class QualificationService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Restore a previously deactivated qualification.
+   */
   @Transactional
   public QualificationResponse reactivateQualification(Long qualificationId) {
     Qualification qualification =
@@ -144,10 +169,16 @@ public class QualificationService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Check whether a qualification name is already in use.
+   */
   public boolean qualificationNameExists(String qualificationName) {
     return qualificationRepository.findByQualificationName(qualificationName).isPresent();
   }
 
+  /**
+   * Map the entity to its API response shape.
+   */
   private QualificationResponse convertToResponse(Qualification qualification) {
     QualificationResponse response = new QualificationResponse();
     response.setId(qualification.getId());

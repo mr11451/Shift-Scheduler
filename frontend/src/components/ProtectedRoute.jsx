@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
+// Whether a stored auth token value looks like a real (non-empty, non-placeholder) token.
 function hasUsableToken(token) {
   return typeof token === 'string' && token.trim() !== '' && token !== 'null' && token !== 'undefined';
 }

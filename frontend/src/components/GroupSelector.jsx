@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 
+// Dropdown for selecting an active group, used by staff creation/edit forms.
 export default function GroupSelector({ selectedGroupId, onChange, required = false }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,6 +10,7 @@ export default function GroupSelector({ selectedGroupId, onChange, required = fa
     loadGroups();
   }, []);
 
+  // Fetch the list of active groups for the dropdown options.
   async function loadGroups() {
     try {
       setLoading(true);

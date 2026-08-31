@@ -1,3 +1,4 @@
+// Parse the comma/newline separated confirmedShiftMonths setting into valid "YYYY-MM" keys.
 export function parseConfirmedMonths(rawValue = "") {
   if (typeof rawValue !== "string") {
     return [];
@@ -11,10 +12,12 @@ export function parseConfirmedMonths(rawValue = "") {
     .filter((value) => /^\d{4}-\d{2}$/.test(value));
 }
 
+// Whether the given "YYYY-MM" month key is in the confirmed months list.
 export function isMonthConfirmed(monthKey, confirmedMonths = []) {
   return confirmedMonths.includes(monthKey);
 }
 
+// Build the label/colors used to render a month's confirmed/pending status badge.
 export function getMonthStatus({ monthKey, isConfirmed = false }) {
   if (isConfirmed) {
     return {

@@ -7,6 +7,9 @@ import java.util.Base64;
 
 public class PasswordUtil {
     
+    /**
+     * Hash a plaintext password with a random salt using SHA-256, returning Base64(salt + hash).
+     */
     public static String hashPassword(String password) {
         try {
             // Generate salt
@@ -31,6 +34,9 @@ public class PasswordUtil {
         }
     }
     
+    /**
+     * Verify a plaintext password against a hash previously produced by {@link #hashPassword}.
+     */
     public static boolean verifyPassword(String password, String hash) {
         try {
             // Decode the hash

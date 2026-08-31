@@ -37,6 +37,9 @@ public class AuthenticationApiController {
         }
     }
 
+    /**
+     * POST /api/password-reset-requests - Issue a password reset link/code for the authenticated staff
+     */
     @PostMapping("/password-reset-requests")
     public ResponseEntity<?> requestPasswordReset(HttpServletRequest request) {
         try {
@@ -48,6 +51,9 @@ public class AuthenticationApiController {
         }
     }
 
+    /**
+     * POST /api/password-resets/{staffId}/{token} - Confirm a password reset with the emailed token/code
+     */
     @PostMapping("/password-resets/{staffId}/{token}")
     public ResponseEntity<?> confirmPasswordReset(
             @org.springframework.web.bind.annotation.PathVariable Long staffId,

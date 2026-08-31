@@ -1,5 +1,13 @@
 package com.shiftscheduler.server.service;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.shiftscheduler.server.api.MemberLoginProvisioningCreateRequest;
 import com.shiftscheduler.server.api.MemberLoginProvisioningResponse;
 import com.shiftscheduler.server.api.MemberLoginProvisioningUpdateRequest;
@@ -8,13 +16,6 @@ import com.shiftscheduler.server.domain.MemberLoginProvisioningStatus;
 import com.shiftscheduler.server.domain.Staff;
 import com.shiftscheduler.server.repository.MemberLoginProvisioningRepository;
 import com.shiftscheduler.server.repository.StaffRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class MemberLoginProvisioningService {
@@ -25,6 +26,9 @@ public class MemberLoginProvisioningService {
   @Autowired
   private StaffRepository staffRepository;
 
+  /**
+   * Record a freshly issued initial-login credential for a staff member.
+   */
   @Transactional
   public MemberLoginProvisioningResponse createMemberLoginProvisioning(MemberLoginProvisioningCreateRequest request) {
     // Validate required fields
@@ -57,6 +61,9 @@ public class MemberLoginProvisioningService {
     return convertToResponse(saved);
   }
 
+  /**
+   * Update an ISSUED provisioning record's editable fields.
+   */
   @Transactional
   public MemberLoginProvisioningResponse updateMemberLoginProvisioning(Long provisioningId, MemberLoginProvisioningUpdateRequest request) {
     MemberLoginProvisioning provisioning = memberLoginProvisioningRepository.findById(provisioningId)
@@ -85,6 +92,9 @@ public class MemberLoginProvisioningService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Mark an ISSUED provisioning record as having been emailed to the staff member.
+   */
   @Transactional
   public MemberLoginProvisioningResponse markAsSent(Long provisioningId) {
     MemberLoginProvisioning provisioning = memberLoginProvisioningRepository.findById(provisioningId)
@@ -102,6 +112,9 @@ public class MemberLoginProvisioningService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Record that sending the provisioning email failed, keeping the error for diagnostics.
+   */
   @Transactional
   public MemberLoginProvisioningResponse markAsFailed(Long provisioningId, String errorMessage) {
     MemberLoginProvisioning provisioning = memberLoginProvisioningRepository.findById(provisioningId)
@@ -114,24 +127,36 @@ public class MemberLoginProvisioningService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Look up a provisioning record by ID.
+   */
   public MemberLoginProvisioningResponse getMemberLoginProvisioningById(Long provisioningId) {
     MemberLoginProvisioning provisioning = memberLoginProvisioningRepository.findById(provisioningId)
         .orElseThrow(() -> new IllegalArgumentException("プロビジョニング情報が見つかりません。"));
     return convertToResponse(provisioning);
   }
 
+  /**
+   * Look up the current provisioning record for a staff member.
+   */
   public MemberLoginProvisioningResponse getMemberLoginProvisioningByStaffId(Long staffId) {
     MemberLoginProvisioning provisioning = memberLoginProvisioningRepository.findByStaffId(staffId)
         .orElseThrow(() -> new IllegalArgumentException("プロビジョニング情報が見つかりません。"));
     return convertToResponse(provisioning);
   }
 
+  /**
+   * Look up a provisioning record by its issued login code.
+   */
   public MemberLoginProvisioningResponse getMemberLoginProvisioningByLoginCode(String loginCode) {
     MemberLoginProvisioning provisioning = memberLoginProvisioningRepository.findByLoginCode(loginCode)
         .orElseThrow(() -> new IllegalArgumentException("プロビジョニング情報が見つかりません。"));
     return convertToResponse(provisioning);
   }
 
+  /**
+   * List provisioning records filtered by status.
+   */
   public List<MemberLoginProvisioningResponse> getMemberLoginProvisioningByStatus(MemberLoginProvisioningStatus status) {
     return memberLoginProvisioningRepository.findByStatus(status)
         .stream()
@@ -139,6 +164,9 @@ public class MemberLoginProvisioningService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Map the entity to its API response shape.
+   */
   private MemberLoginProvisioningResponse convertToResponse(MemberLoginProvisioning provisioning) {
     MemberLoginProvisioningResponse response = new MemberLoginProvisioningResponse();
     response.setId(provisioning.getId());

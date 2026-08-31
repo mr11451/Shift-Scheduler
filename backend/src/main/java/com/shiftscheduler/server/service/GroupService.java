@@ -1,18 +1,19 @@
 package com.shiftscheduler.server.service;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.shiftscheduler.server.api.GroupCreateRequest;
 import com.shiftscheduler.server.api.GroupResponse;
 import com.shiftscheduler.server.api.GroupUpdateRequest;
 import com.shiftscheduler.server.domain.Group;
 import com.shiftscheduler.server.repository.GroupRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class GroupService {
@@ -20,6 +21,9 @@ public class GroupService {
   @Autowired
   private GroupRepository groupRepository;
 
+  /**
+   * Create a new group after validating required fields and code uniqueness.
+   */
   @Transactional
   public GroupResponse createGroup(GroupCreateRequest request) {
     // Validate required fields
@@ -47,6 +51,9 @@ public class GroupService {
     return convertToResponse(saved);
   }
 
+  /**
+   * Update an existing group's editable fields, enforcing code uniqueness.
+   */
   @Transactional
   public GroupResponse updateGroup(Long groupId, GroupUpdateRequest request) {
     Group group =
@@ -83,6 +90,9 @@ public class GroupService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Look up a group by ID.
+   */
   public GroupResponse getGroupById(Long groupId) {
     Group group =
         groupRepository
@@ -92,6 +102,9 @@ public class GroupService {
     return convertToResponse(group);
   }
 
+  /**
+   * Look up a group by its unique code.
+   */
   public GroupResponse getGroupByCode(String groupCode) {
     Group group =
         groupRepository
@@ -103,6 +116,9 @@ public class GroupService {
     return convertToResponse(group);
   }
 
+  /**
+   * List every group regardless of active status.
+   */
   public List<GroupResponse> getAllGroups() {
     return groupRepository.findAll()
         .stream()
@@ -110,6 +126,9 @@ public class GroupService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * List only active groups.
+   */
   public List<GroupResponse> getAllActiveGroups() {
     return groupRepository.findAllByIsActiveTrue()
         .stream()
@@ -117,6 +136,9 @@ public class GroupService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Soft-delete a group by flipping its active flag off.
+   */
   @Transactional
   public GroupResponse deactivateGroup(Long groupId) {
     Group group =
@@ -132,6 +154,9 @@ public class GroupService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Restore a previously deactivated group.
+   */
   @Transactional
   public GroupResponse reactivateGroup(Long groupId) {
     Group group =
@@ -147,10 +172,16 @@ public class GroupService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Check whether a group code is already in use.
+   */
   public boolean groupCodeExists(String groupCode) {
     return groupRepository.findByGroupCode(groupCode).isPresent();
   }
 
+  /**
+   * Map the entity to its API response shape.
+   */
   private GroupResponse convertToResponse(Group group) {
     GroupResponse response = new GroupResponse();
     response.setId(group.getId());

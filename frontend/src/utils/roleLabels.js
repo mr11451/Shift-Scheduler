@@ -4,6 +4,7 @@ export const DEFAULT_ROLE_LABELS = {
   MEMBER: "メンバー",
 };
 
+// Parse the roleLabels system setting's JSON value, falling back to defaults when missing/invalid.
 export function parseRoleLabels(rawValue = "") {
   if (!rawValue || typeof rawValue !== "string") {
     return { ...DEFAULT_ROLE_LABELS };

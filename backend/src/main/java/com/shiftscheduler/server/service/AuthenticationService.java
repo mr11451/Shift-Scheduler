@@ -39,6 +39,9 @@ public class AuthenticationService {
 
     private final SecureRandom secureRandom = new SecureRandom();
     
+    /**
+     * Authenticate a staff by staff code/password and issue a JWT on success.
+     */
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
         // Find staff by staff code
@@ -67,6 +70,10 @@ public class AuthenticationService {
         );
     }
 
+    /**
+     * Issue a password reset token/verification code and email it, or return it directly
+     * when the email service is unavailable.
+     */
     @Transactional
     public PasswordResetRequestResponse requestPasswordReset(Long staffId) {
         if (staffId == null) {
@@ -123,6 +130,9 @@ public class AuthenticationService {
         }
     }
 
+    /**
+     * Validate a password reset token and verification code, then set the new password.
+     */
     @Transactional
     public void resetPassword(Long staffId, String token, String verificationCode, String newPassword) {
         if (newPassword == null || newPassword.length() < 8) {
@@ -148,12 +158,18 @@ public class AuthenticationService {
         resetToken.setUsedAt(passwordChangedAt);
     }
 
+    /**
+     * Generate a random URL-safe token used in password reset links.
+     */
     private String generateToken() {
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    /**
+     * Hash a value with SHA-256 so raw tokens/codes are never stored.
+     */
     private String sha256(String value) {
         try {
             return Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256")

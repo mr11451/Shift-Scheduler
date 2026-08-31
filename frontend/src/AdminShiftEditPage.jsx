@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import AdminShiftEditTab from "./components/AdminTabs/AdminShiftEditTab";
 
+// Standalone page wrapper around the shift-edit tab, reached from the admin dashboard.
 export default function AdminShiftEditPage() {
   return (
     <main className="shell">

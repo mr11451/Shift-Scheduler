@@ -2,6 +2,10 @@ package com.shiftscheduler.server.service;
 
 import org.springframework.stereotype.Service;
 
+/**
+ * Fallback used when SMTP is not configured; every send attempt fails loudly
+ * so callers fall back to displaying the reset link/code directly.
+ */
 @Service
 public class UnavailablePasswordResetEmailService implements PasswordResetEmailService {
     @Override

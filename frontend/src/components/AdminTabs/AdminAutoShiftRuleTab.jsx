@@ -14,6 +14,8 @@ const DEFAULT_RULES = {
   existingShiftHandling: "ONLY_EMPTY",
 };
 
+// Admin tab for configuring default and per-group auto-generation rules. CHIEF is restricted
+// to editing only their own group's rules (restrictToOwnGroup/ownGroupId props).
 export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = false, ownGroupId = null }) {
   const [shiftTypes, setShiftTypes] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -30,6 +32,7 @@ export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = f
     loadData();
   }, []);
 
+  // fetchWithAuth wrapper that never triggers a redirect on 401.
   async function authFetchNoRedirect(url, options = {}) {
     const token = localStorage.getItem("authToken");
     const headers = {
@@ -46,6 +49,7 @@ export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = f
     });
   }
 
+  // Load shift types, groups, and the persisted rules setting, then select the initial scope.
   async function loadData() {
     try {
       setLoading(true);
@@ -116,6 +120,7 @@ export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = f
     }
   }
 
+  // Fill in any missing fields of a rules object with defaults.
   function normalizeRules(source) {
     return {
       ...DEFAULT_RULES,
@@ -127,6 +132,7 @@ export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = f
     };
   }
 
+  // Apply an edited rules object to the currently selected scope (default or a specific group).
   function updateActiveRules(nextRules) {
     const normalized = normalizeRules(nextRules);
     setRules(normalized);
@@ -140,6 +146,7 @@ export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = f
     }));
   }
 
+  // Build the combined {defaultRules, groupRules} payload to send to the API.
   function buildPayloadRules() {
     const nextDefaultRules = selectedScope === DEFAULT_SCOPE ? rules : defaultRules;
     const nextGroupRules = { ...groupRules };
@@ -154,6 +161,7 @@ export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = f
     };
   }
 
+  // Switch the rule-editing scope between default and a specific group (no-op when restricted).
   function handleScopeChange(e) {
     if (restrictToOwnGroup) {
       return;
@@ -169,6 +177,7 @@ export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = f
     setRules(groupRules[nextScope] || defaultRules);
   }
 
+  // Sync a simple form field's value into the active rules object.
   function handleChange(e) {
     const { name, value } = e.target;
     updateActiveRules({
@@ -177,6 +186,7 @@ export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = f
     });
   }
 
+  // Update the required headcount for a single shift type within the active rules.
   function handleRequiredCountChange(shiftTypeId, value) {
     updateActiveRules({
       ...rules,
@@ -187,6 +197,7 @@ export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = f
     });
   }
 
+  // Check the given rules for logically inconsistent values and return warning messages.
   function validateRules(nextRules) {
     const warnings = [];
     const monthlyMaxMode = nextRules.monthlyMaxWorkdaysMode || "FIXED";
@@ -214,6 +225,7 @@ export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = f
     return warnings;
   }
 
+  // Persist the rules payload to the API, blocking on validation warnings unless overridden.
   async function saveRules(allowWarnings = false) {
     setSaving(true);
     setMessage("");
@@ -254,11 +266,13 @@ export default function AdminAutoShiftRuleTab({ onCancel, restrictToOwnGroup = f
     }
   }
 
+  // Form submit handler: save the rules, respecting validation warnings.
   async function handleSubmit(e) {
     e.preventDefault();
     await saveRules();
   }
 
+  // Save the rules even though validation warnings are present.
   async function handleConfirmWithWarnings(e) {
     e.preventDefault();
     await saveRules(true);

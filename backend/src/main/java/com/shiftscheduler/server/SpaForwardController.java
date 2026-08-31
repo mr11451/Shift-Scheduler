@@ -1,14 +1,18 @@
 package com.shiftscheduler.server;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.server.ResponseStatusException;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @Controller
 public class SpaForwardController {
 
+    /**
+     * Forward any non-API, non-file route to index.html so the React router can handle it.
+     */
     @GetMapping(value = {
             "/",
             "/{path:[^\\.]*}",

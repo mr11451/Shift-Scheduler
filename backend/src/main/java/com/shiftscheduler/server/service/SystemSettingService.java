@@ -40,6 +40,9 @@ public class SystemSettingService {
   @Autowired
   private ObjectMapper objectMapper;
 
+  /**
+   * Update a boolean-valued system setting; MASTER only.
+   */
   @Transactional
   public SystemSettingResponse updateSystemSettingBoolean(Long updaterStaffId, String settingKey, Boolean value) {
     // Check MASTER privilege
@@ -65,6 +68,10 @@ public class SystemSettingService {
     return convertToResponse(saved);
   }
 
+  /**
+   * Update a text-valued system setting. MASTER may update any key; CHIEF may only update
+   * their own group's entry within autoShiftGenerationRules.
+   */
   @Transactional
   public SystemSettingResponse updateSystemSettingText(Long updaterStaffId, String settingKey, String value) {
     Staff updater = staffRepository.findById(updaterStaffId)
@@ -130,12 +137,18 @@ public class SystemSettingService {
     return root.toString();
   }
 
+  /**
+   * Look up a single system setting by key.
+   */
   public SystemSettingResponse getSystemSettingByKey(String settingKey) {
     SystemSetting setting = systemSettingRepository.findBySettingKey(settingKey)
         .orElseThrow(() -> new IllegalArgumentException("設定が見つかりません: " + settingKey));
     return convertToResponse(setting);
   }
 
+  /**
+   * List every system setting.
+   */
   public List<SystemSettingResponse> getAllSystemSettings() {
     return systemSettingRepository.findAll()
         .stream()
@@ -143,18 +156,27 @@ public class SystemSettingService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Read a boolean setting value, or null if unset.
+   */
   public Boolean getSystemSettingBooleanValue(String settingKey) {
     return systemSettingRepository.findBySettingKey(settingKey)
         .map(SystemSetting::getSettingValueBoolean)
         .orElse(null);
   }
 
+  /**
+   * Read a text setting value, or null if unset.
+   */
   public String getSystemSettingTextValue(String settingKey) {
     return systemSettingRepository.findBySettingKey(settingKey)
         .map(SystemSetting::getSettingValueText)
         .orElse(null);
   }
 
+  /**
+   * Check whether the given "YYYY-MM" month key is in the confirmed months list.
+   */
   public boolean isMonthConfirmed(String monthKey) {
     if (monthKey == null || !monthKey.matches("\\d{4}-\\d{2}")) {
       return false;
@@ -163,11 +185,17 @@ public class SystemSettingService {
     return parseConfirmedMonths(getSystemSettingTextValue("confirmedShiftMonths")).contains(monthKey);
   }
 
+  /**
+   * Check whether the given year/month is confirmed.
+   */
   public boolean isMonthConfirmed(int year, int month) {
     String monthKey = String.format("%04d-%02d", year, month);
     return isMonthConfirmed(monthKey);
   }
 
+  /**
+   * Remove a month from the confirmed months list; MASTER/CHIEF only.
+   */
   @Transactional
   public void removeConfirmedMonth(Long updaterStaffId, int year, int month) {
     Staff updater = staffRepository.findById(updaterStaffId)
@@ -197,6 +225,10 @@ public class SystemSettingService {
     systemSettingRepository.save(setting);
   }
 
+  /**
+   * Confirm a month, locking its assignments and reconciling submitted shift requests
+   * against the confirmed schedule; MASTER/CHIEF only.
+   */
   @Transactional
   public void confirmMonth(Long updaterStaffId, int year, int month) {
     Staff updater = staffRepository.findById(updaterStaffId)
@@ -228,6 +260,9 @@ public class SystemSettingService {
     shiftRequestService.reconcileShiftRequestsForMonth(yearMonth.atDay(1), yearMonth.atEndOfMonth());
   }
 
+  /**
+   * Reset the stored required-headcount for a shift type back to zero (e.g. after deletion).
+   */
   @Transactional
   public void resetAutoShiftRequiredCount(Long shiftTypeId) {
     if (shiftTypeId == null) {
@@ -250,6 +285,10 @@ public class SystemSettingService {
     systemSettingRepository.save(setting);
   }
 
+  /**
+   * Parse the persisted autoShiftGenerationRules JSON into a mutable node, defaulting to
+   * an empty object if unset or malformed.
+   */
   private ObjectNode createRulesRoot(String rawValue) {
     if (rawValue != null && !rawValue.isBlank()) {
       try {
@@ -265,6 +304,9 @@ public class SystemSettingService {
     return objectMapper.createObjectNode();
   }
 
+  /**
+   * Parse the comma/newline separated confirmedShiftMonths setting into valid "YYYY-MM" keys.
+   */
   private List<String> parseConfirmedMonths(String rawValue) {
     if (rawValue == null || rawValue.isBlank()) {
       return List.of();
@@ -279,6 +321,9 @@ public class SystemSettingService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Map the entity to its API response shape.
+   */
   private SystemSettingResponse convertToResponse(SystemSetting setting) {
     SystemSettingResponse response = new SystemSettingResponse();
     response.setSettingKey(setting.getSettingKey());

@@ -13,6 +13,8 @@ const REQUEST_STATUS_SHORT_LABELS = {
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
+// Grid-based shift editing screen: assign shift types per staff/day, run auto-generation,
+// confirm/clear months, and surface constraint violations (NG shifts, consecutive days, gaps).
 export default function AdminShiftEditTab() {
   const { auth } = useContext(AuthContext);
   const isAdminRole = auth?.roleLevel === "MASTER" || auth?.roleLevel === "CHIEF";
@@ -44,6 +46,7 @@ export default function AdminShiftEditTab() {
     loadData();
   }, [currentDate, auth?.token, auth?.roleLevel]);
 
+  // Format a Date as "YYYY-MM-DD" in local time.
   function toLocalDateString(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -51,12 +54,14 @@ export default function AdminShiftEditTab() {
     return `${year}-${month}-${day}`;
   }
 
+  // Format a year/month/day triple as "YYYY-MM-DD".
   function toLocalDateStringByDay(year, monthIndex, day) {
     const month = String(monthIndex + 1).padStart(2, "0");
     const dayString = String(day).padStart(2, "0");
     return `${year}-${month}-${dayString}`;
   }
 
+  // Load staff, shift types, assignments, and requests for the current month.
   async function loadData(preserveMessage = false) {
     try {
       setLoading(true);
@@ -120,6 +125,7 @@ export default function AdminShiftEditTab() {
     }
   }
 
+  // Group staff by their group name for the fixed-column table, excluding ungrouped MASTER staff.
   function groupStaffs(staffs) {
     const groups = {};
     staffs
@@ -146,19 +152,23 @@ export default function AdminShiftEditTab() {
     setStaffsByGroup(sorted);
   }
 
+  // Number of days in the given month.
   function getDaysInMonth(date) {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   }
 
+  // 0 (Sunday) - 6 (Saturday) weekday index for a given day-of-month.
   function getWeekday(day) {
     return new Date(currentDate.getFullYear(), currentDate.getMonth(), day).getDay();
   }
 
+  // Japanese single-character weekday label for a given day-of-month.
   function getWeekdayLabel(day) {
     const weekDay = getWeekday(day);
     return WEEKDAY_LABELS[weekDay];
   }
 
+  // Background style for weekend/holiday columns in the calendar table.
   function getWeekendColumnStyle(day) {
     const weekDay = getWeekday(day);
 
@@ -182,6 +192,7 @@ export default function AdminShiftEditTab() {
     };
   }
 
+  // Load configured holiday dates/weekdays used to shade the calendar.
   async function loadHolidayDates() {
     try {
       const res = await fetchWithAuth("/api/system-settings", { redirectOnUnauthorized: false });
@@ -275,6 +286,7 @@ export default function AdminShiftEditTab() {
     return counts;
   }, [shiftAssignments, staffGroupKeyByStaffId]);
 
+  // Look up the configured required headcounts for a staff member's group.
   function getRequiredCountsForStaff(staffId) {
     const groupKey = staffGroupKeyByStaffId[String(staffId)] || "__ungrouped__";
     const groupRequired = requiredCountsByGroup[groupKey];
@@ -284,6 +296,7 @@ export default function AdminShiftEditTab() {
     return requiredCounts;
   }
 
+  // Whether the given date is short-staffed for any shift type required by this staff's group.
   function isRequiredCountShortageDateForStaff(dateStr, staffId) {
     const groupKey = staffGroupKeyByStaffId[String(staffId)] || "__ungrouped__";
     const countsByShiftType = dailyShiftCountsByGroup?.[groupKey]?.[dateStr] || {};
@@ -300,6 +313,7 @@ export default function AdminShiftEditTab() {
     });
   }
 
+  // Check whether the displayed month has already been confirmed.
   async function loadCurrentMonthConfirmationStatus(date) {
     try {
       const year = date.getFullYear();
@@ -321,14 +335,17 @@ export default function AdminShiftEditTab() {
     }
   }
 
+  // Navigate the calendar to the previous month.
   function previousMonth() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   }
 
+  // Navigate the calendar to the next month.
   function nextMonth() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   }
 
+  // Display code for the shift assigned to a staff member on a given day.
   function getShiftName(staffId, day) {
     const dateStr = toLocalDateStringByDay(currentDate.getFullYear(), currentDate.getMonth(), day);
     const key = `${staffId}-${dateStr}`;
@@ -341,11 +358,13 @@ export default function AdminShiftEditTab() {
     return shiftType.isOffType ? "" : shiftType.shiftName;
   }
 
+  // Look up a staff member's desired-shift request for a given day.
   function getShiftRequest(staffId, day) {
     const dateStr = toLocalDateStringByDay(currentDate.getFullYear(), currentDate.getMonth(), day);
     return shiftRequests[`${staffId}-${dateStr}`] || null;
   }
 
+  // Parse a staff member's stored NG-shift-type preference value into shift type IDs.
   function parseShiftTypeIds(value) {
     if (!value) {
       return [];
@@ -438,6 +457,7 @@ export default function AdminShiftEditTab() {
     return [];
   }
 
+  // Parse a staff member's stored shift preference value into blocked weekday IDs.
   function parseWeekdayIds(value) {
     if (!value) {
       return [];
@@ -531,6 +551,7 @@ export default function AdminShiftEditTab() {
       .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6);
   }
 
+  // Build the combined NG-shift condition (shift type IDs + weekday IDs) for a staff member.
   function buildNgCondition(staff) {
     const typeIds = [
       ...parseShiftTypeIds(staff?.ngShiftTypeIds),
@@ -547,6 +568,7 @@ export default function AdminShiftEditTab() {
     };
   }
 
+  // Parse a "HH:mm" time string into minutes since midnight.
   function parseTimeToMinutes(value) {
     if (!value || typeof value !== "string") {
       return null;
@@ -566,6 +588,7 @@ export default function AdminShiftEditTab() {
     return hours * 60 + minutes;
   }
 
+  // Whether the given weekday is allowed under a staff member's NG-weekday list.
   function isNgWeekdayAllowed(day, weekdayIds) {
     if (!weekdayIds.length) {
       return true;
@@ -573,6 +596,7 @@ export default function AdminShiftEditTab() {
     return weekdayIds.includes(getWeekday(day));
   }
 
+  // Whether assigning this shift type to the staff on this day violates their NG-shift settings.
   function isStaffInNgShiftBand(staff, shiftTypeId, day) {
     if (!shiftTypeId || !Number.isInteger(day)) {
       return false;
@@ -586,6 +610,7 @@ export default function AdminShiftEditTab() {
     return isShiftTypeBlocked || isWeekdayBlocked;
   }
 
+  // Whether this weekday is blocked for the staff regardless of shift type.
   function isWeekdayNgForStaff(staff, day) {
     if (!Number.isInteger(day)) {
       return false;
@@ -594,6 +619,7 @@ export default function AdminShiftEditTab() {
     return buildNgCondition(staff).weekdayIds.includes(getWeekday(day));
   }
 
+  // Find the nearest assigned date before/after a target date for a staff member.
   function findNearestAssignmentDate(staffId, targetDateString, direction) {
     const dates = Object.values(shiftAssignments)
       .filter((assignment) => Number(assignment.staffId) === Number(staffId))
@@ -614,6 +640,7 @@ export default function AdminShiftEditTab() {
     return dates.find((date) => date > targetDateString) || null;
   }
 
+  // Whether assigning this shift would leave less than the minimum rest gap versus adjacent shifts.
   function isMinimumShiftGapViolation(staffId, day, shiftTypeId) {
     if (!shiftTypeId || minimumShiftGapHours <= 0) {
       return false;
@@ -672,6 +699,7 @@ export default function AdminShiftEditTab() {
     return false;
   }
 
+  // Whether the given shift type counts as an actual work shift (not off/vacation).
   function isWorkShiftType(shiftTypeId) {
     if (!shiftTypeId) {
       return false;
@@ -685,6 +713,7 @@ export default function AdminShiftEditTab() {
     return !shiftType.isOffType;
   }
 
+  // Whether assigning a work shift here would exceed the configured max consecutive workdays.
   function isConsecutiveWorkdaysViolation(staffId, day, shiftTypeId) {
     if (maxConsecutiveWorkdays <= 0) {
       return false;
@@ -727,6 +756,7 @@ export default function AdminShiftEditTab() {
     return consecutive > maxConsecutiveWorkdays;
   }
 
+  // Whether the assigned shift type differs from the staff member's desired-shift request.
   function isShiftMismatch(staff, shiftTypeId, day) {
     const shiftRequest = getShiftRequest(staff.id, day);
     if (!shiftRequest) {
@@ -744,6 +774,7 @@ export default function AdminShiftEditTab() {
     return Number(shiftRequest.desiredShiftTypeId) !== Number(shiftTypeId);
   }
 
+  // Load desired-shift requests for all staff within the given date range.
   async function loadShiftRequestsForMonth(startDate, endDate, staffs) {
     const groupIds = [...new Set(staffs.map((staff) => staff.groupId).filter(Boolean))];
     const ungroupedStaffIds = [...new Set(staffs.filter((staff) => !staff.groupId).map((staff) => staff.id))];
@@ -778,6 +809,7 @@ export default function AdminShiftEditTab() {
     return requestMap;
   }
 
+  // Create/update/clear a single cell's shift assignment via the API.
   async function handleShiftChange(staffId, day, selectedShiftTypeId) {
     const dateStr = toLocalDateStringByDay(currentDate.getFullYear(), currentDate.getMonth(), day);
     const key = `${staffId}-${dateStr}`;
@@ -844,6 +876,7 @@ export default function AdminShiftEditTab() {
     }
   }
 
+  // Open the inline shift-type selector for a given staff/day cell.
   function openCellEditor(staffId, day) {
     const dateStr = toLocalDateStringByDay(currentDate.getFullYear(), currentDate.getMonth(), day);
     if (holidayDates.includes(dateStr)) {
@@ -857,6 +890,7 @@ export default function AdminShiftEditTab() {
     setActiveCellKey(`${staffId}-${dateStr}`);
   }
 
+  // Confirm the displayed month, locking its assignments against further changes.
   async function handleConfirmCurrentMonth() {
     const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
     if (isCurrentMonthConfirmed) {
@@ -891,6 +925,7 @@ export default function AdminShiftEditTab() {
     }
   }
 
+  // Trigger server-side auto-generation for the displayed month and show the result in a dialog.
   async function handleAutoGenerate() {
     if (isCurrentMonthConfirmed) {
       setAutoGenerateDialog({ type: "error", text: "この月は確定済みのため自動生成できません。" });
@@ -946,6 +981,7 @@ export default function AdminShiftEditTab() {
     }
   }
 
+  // Clear all shift assignments for the displayed month.
   async function handleClearMonthShifts() {
     const targetYear = currentDate.getFullYear();
     const targetMonth = currentDate.getMonth() + 1;

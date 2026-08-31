@@ -8,6 +8,7 @@ import MemberPage from "./MemberPage";
 import AdminPage from "./AdminPage";
 import AdminShiftEditPage from "./AdminShiftEditPage";
 
+// Top-level router: login, password reset, member calendar, and admin screens.
 export default function App() {
   return (
     <AuthProvider>

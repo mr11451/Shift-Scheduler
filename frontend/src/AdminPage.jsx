@@ -9,6 +9,7 @@ import { AuthContext } from "./context/AuthContext";
 import { fetchWithAuth } from "./utils/fetchWithAuth";
 import { DEFAULT_ROLE_LABELS, parseRoleLabels } from "./utils/roleLabels";
 
+// Admin shell: header, tab navigation, and the active management tab's content.
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("staff");
   const { auth } = useContext(AuthContext);
@@ -18,6 +19,7 @@ export default function AdminPage() {
   useEffect(() => {
     let mounted = true;
 
+    // Fetch the logged-in staff's up-to-date profile (name/role) for the header summary.
     async function loadLoginProfile() {
       if (!auth?.staffId || !auth?.token || auth.token === 'null' || auth.token === 'undefined') {
         setLoginProfile(null);
@@ -45,6 +47,7 @@ export default function AdminPage() {
       }
     }
 
+    // Fetch the configured role display labels.
     async function loadRoleLabels() {
       try {
         const response = await fetchWithAuth("/api/system-settings/roleLabels");

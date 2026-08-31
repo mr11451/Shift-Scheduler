@@ -1,10 +1,11 @@
 package com.shiftscheduler.server;
 
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Component;
+
 import com.shiftscheduler.server.domain.Staff;
 import com.shiftscheduler.server.repository.StaffRepository;
 import com.shiftscheduler.server.util.PasswordUtil;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.stereotype.Component;
 
 @Component
 public class InitializeTestPasswordsRunner implements CommandLineRunner {
@@ -15,6 +16,10 @@ public class InitializeTestPasswordsRunner implements CommandLineRunner {
     this.staffRepository = staffRepository;
   }
 
+  /**
+   * On startup, assign a deterministic test password to any staff record that has none yet
+   * (development convenience only).
+   */
   @Override
   public void run(String... args) throws Exception {
     // Set test passwords for all staffs that don't have a password yet

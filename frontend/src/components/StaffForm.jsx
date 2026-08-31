@@ -14,6 +14,8 @@ const WEEKDAY_OPTIONS = [
   { value: 6, label: "土" },
 ];
 
+// Create/edit form for a staff member: profile fields, group assignment, qualifications,
+// and NG/preferred shift settings.
 export default function StaffForm({ staffId, onSuccess, onCancel }) {
   const { auth } = useContext(AuthContext);
   const canEditGroup = auth?.roleLevel === "MASTER";
@@ -63,6 +65,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     }
   }, [staffId]);
 
+  // Fetch the configured role display labels.
   async function loadRoleLabels() {
     try {
       const response = await fetchWithAuth("/api/system-settings/roleLabels");
@@ -78,6 +81,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     }
   }
 
+  // Fetch the list of groups for the group-assignment dropdown.
   async function loadGroups() {
     try {
       const response = await fetchWithAuth("/api/groups");
@@ -94,6 +98,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     }
   }
 
+  // Create a brand-new group inline and select it for this staff member.
   async function createNewGroup() {
     if (!newGroupName.trim()) {
       setMessage("グループ名を入力してください。");
@@ -133,6 +138,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     }
   }
 
+  // Fetch the list of qualifications for the qualification checkboxes.
   async function loadQualifications() {
     try {
       const response = await fetchWithAuth("/api/qualifications");
@@ -145,6 +151,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     }
   }
 
+  // Fetch the list of shift types for the NG/preferred shift checkboxes.
   async function loadShiftTypes() {
     try {
       const response = await fetchWithAuth("/api/shift-types?active=true");
@@ -157,6 +164,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     }
   }
 
+  // Parse a staff member's stored NG-shift-type preference value into shift type IDs.
   function parseNgShiftTypeIds(value) {
     if (!value) {
       return [];
@@ -184,6 +192,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     return [];
   }
 
+  // Parse a staff member's stored shift preference value into weekday IDs.
   function parseShiftWeekdayIds(value) {
     if (!value || typeof value !== "string") {
       return [];
@@ -205,6 +214,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     }
   }
 
+  // Serialize selected shift type/weekday IDs back into the stored preference value format.
   function buildShiftPreferenceValue(shiftTypeIds, weekdayIds, fallbackValue) {
     const normalizedShiftTypeIds = (shiftTypeIds || []).map((id) => Number(id)).filter((id) => Number.isFinite(id));
     const normalizedWeekdayIds = (weekdayIds || []).map((id) => Number(id)).filter((id) => Number.isInteger(id) && id >= 0 && id <= 6);
@@ -219,6 +229,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     });
   }
 
+  // Fetch an existing staff member's data to populate the form for editing.
   async function loadStaff(id) {
     try {
       const response = await fetchWithAuth(`/api/staffs/${id}`);
@@ -252,6 +263,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
   const selectedGroupId = form.groupId ?? "";
   const hasCurrentGroupOption = currentGroupName && selectedGroupId !== "" && groups.some((group) => String(group.id) === String(selectedGroupId));
 
+  // Sync a form field's value (or checkbox state) into local form state.
   function onChange(event) {
     const { name, value, type, checked } = event.target;
     const fieldValue = type === "checkbox" ? checked : value;
@@ -315,6 +327,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
     }
   }
 
+  // Validate and submit the create/update form to the API.
   async function onSubmit(event) {
     event.preventDefault();
     setLoading(true);

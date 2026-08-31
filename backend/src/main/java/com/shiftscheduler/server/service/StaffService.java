@@ -85,6 +85,9 @@ public class StaffService {
         return staffRepository.save(staff);
     }
 
+    /**
+     * Create a staff member and, for MEMBER role, also issue initial login credentials.
+     */
     public StaffCreateResponse createStaffWithInitialLogin(Long updaterStaffId, StaffCreateRequest request) {
         Staff staff = createStaff(updaterStaffId, request);
         InitialLoginInformation initialLoginInformation = createInitialLoginInformation(staff);
@@ -153,6 +156,10 @@ public class StaffService {
         return staffRepository.findAllActiveByGroupId(groupId);
     }
 
+    /**
+     * List staff visible to the requester: everyone for MASTER, same-group managed roles for
+     * CHIEF, and self (plus approved calendar-view targets) for MEMBER.
+     */
     public List<Staff> getSelectableStaffsForRequester(Long requesterStaffId) {
         Optional<Staff> requesterOpt = staffRepository.findById(requesterStaffId);
         if (requesterOpt.isEmpty()) {
@@ -177,6 +184,10 @@ public class StaffService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * List same-group staff a MEMBER could request calendar-view permission from,
+     * when the feature is enabled.
+     */
     public List<Staff> getCalendarViewPermissionTargets(Long requesterStaffId) {
         Optional<Staff> requesterOpt = staffRepository.findById(requesterStaffId);
         if (requesterOpt.isEmpty() || requesterOpt.get().getRoleLevel() != RoleLevel.MEMBER
@@ -190,6 +201,9 @@ public class StaffService {
                 .collect(Collectors.toList());
     }
 
+        /**
+         * Whether the requester is allowed to see targetStaff in staff/shift listings.
+         */
         private boolean isViewableStaff(Staff requester, Staff targetStaff, Set<Long> approvedTargetIds,
                         boolean calendarViewPermissionEnabled) {
         if (requester == null || targetStaff == null) {
@@ -212,6 +226,9 @@ public class StaffService {
         return false;
     }
 
+    /**
+     * Check if the requester and target staff share the same (non-null) group.
+     */
     private boolean isSameGroup(Staff requester, Staff targetStaff) {
         return requester.getGroup() != null
                 && targetStaff.getGroup() != null
@@ -235,6 +252,10 @@ public class StaffService {
         return String.format("STF-%05d", count);
     }
 
+    /**
+     * Build the initial-login provisioning record for a newly created MEMBER, emailing the
+     * credentials when possible and falling back to returning them directly otherwise.
+     */
     private InitialLoginInformation createInitialLoginInformation(Staff staff) {
         if (staff.getRoleLevel() != RoleLevel.MEMBER) {
             return null;
@@ -285,6 +306,9 @@ public class StaffService {
         return new InitialLoginInformation(false, fallbackMessage, accessUrl, staff.getStaffCode(), initialPassword);
     }
 
+    /**
+     * Build the login page URL used in initial-login notification emails.
+     */
     private String buildInitialLoginAccessUrl() {
         String baseUrl = systemSettingService.getSystemSettingTextValue("memberLoginNotificationBaseUrl");
         if (baseUrl == null || baseUrl.isBlank()) {
@@ -293,6 +317,9 @@ public class StaffService {
         return baseUrl.replaceAll("/+$", "") + "/login";
     }
 
+    /**
+     * Generate a random initial password for newly provisioned members.
+     */
     private String generateInitialPassword() {
         byte[] bytes = new byte[12];
         secureRandom.nextBytes(bytes);

@@ -33,6 +33,10 @@ public class StaffApiController {
         this.staffService = staffService;
     }
 
+    /**
+     * GET /api/staffs - List staff visible to the requester (falls back to group/active filters
+     * when unauthenticated, used by internal callers).
+     */
     @GetMapping
     public ResponseEntity<List<StaffResponse>> listStaffs(
             HttpServletRequest request,
@@ -56,6 +60,9 @@ public class StaffApiController {
         return ResponseEntity.ok(responses);
     }
 
+    /**
+     * GET /api/staffs/{staffId} - Retrieve a single staff member
+     */
     @GetMapping("/{staffId}")
     public ResponseEntity<StaffResponse> getStaff(@PathVariable Long staffId) {
         return staffService.getStaffById(staffId)
@@ -63,6 +70,10 @@ public class StaffApiController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    /**
+     * GET /api/staffs/permission-targets - List same-group staff the requester (a MEMBER)
+     * could request calendar-view permission from
+     */
     @GetMapping("/permission-targets")
     public ResponseEntity<List<StaffResponse>> listCalendarViewPermissionTargets(HttpServletRequest request) {
         Long requesterStaffId = getAuthenticatedStaffId(request);
@@ -76,6 +87,10 @@ public class StaffApiController {
         return ResponseEntity.ok(responses);
     }
 
+    /**
+     * POST /api/staffs - Create a new staff member and, for MEMBER role, issue initial login credentials.
+     * Updater staff ID is resolved from JWT-authenticated request context.
+     */
     @PostMapping
     public ResponseEntity<StaffCreateResponse> createStaff(@RequestBody StaffCreateRequest request, HttpServletRequest httpRequest) {
         // Validate required fields
@@ -98,6 +113,10 @@ public class StaffApiController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    /**
+     * PUT /api/staffs/{staffId} - Update a staff member's editable fields.
+     * Updater staff ID is resolved from JWT-authenticated request context.
+     */
     @PutMapping("/{staffId}")
     public ResponseEntity<StaffResponse> updateStaff(
             @PathVariable Long staffId,
@@ -115,6 +134,9 @@ public class StaffApiController {
         }
     }
 
+    /**
+     * DELETE /api/staffs/{staffId} - Deactivate a staff member (logical delete)
+     */
     @DeleteMapping("/{staffId}")
     public ResponseEntity<Void> deactivateStaff(@PathVariable Long staffId) {
         try {
@@ -125,6 +147,9 @@ public class StaffApiController {
         }
     }
 
+    /**
+     * POST /api/staffs/{staffId}/reactivate - Restore a previously deactivated staff member
+     */
     @PostMapping("/{staffId}/reactivate")
     public ResponseEntity<StaffResponse> reactivateStaff(@PathVariable Long staffId) {
         try {
@@ -135,6 +160,9 @@ public class StaffApiController {
         }
     }
 
+    /**
+     * Extract the authenticated staff ID set by the JWT filter, if present.
+     */
     private Long getAuthenticatedStaffId(HttpServletRequest request) {
         Object staffId = request.getAttribute("staffId");
         if (staffId instanceof Number number) {

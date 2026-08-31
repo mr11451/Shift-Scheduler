@@ -3,6 +3,7 @@ import StaffForm from "../StaffForm";
 import { fetchWithAuth } from "../../utils/fetchWithAuth";
 import { DEFAULT_ROLE_LABELS, parseRoleLabels } from "../../utils/roleLabels";
 
+// Sortable list of all staff with edit/delete actions, feeding into StaffForm for create/edit.
 function StaffListView({ onEdit }) {
   const [staffs, setStaffs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +18,7 @@ function StaffListView({ onEdit }) {
     loadRoleLabels();
   }, []);
 
+  // Fetch the staff list visible to the current requester.
   async function loadStaffs() {
     try {
       setLoading(true);
@@ -31,6 +33,7 @@ function StaffListView({ onEdit }) {
     }
   }
 
+  // Fetch the configured role display labels, falling back to defaults on failure.
   async function loadRoleLabels() {
     try {
       const res = await fetchWithAuth("/api/system-settings/roleLabels", { redirectOnUnauthorized: false });
@@ -46,6 +49,7 @@ function StaffListView({ onEdit }) {
     }
   }
 
+  // Deactivate (logically delete) a staff member after confirmation.
   async function handleDelete(staffId) {
     if (!window.confirm("このスタッフを削除してもよろしいですか？")) return;
     try {
@@ -60,6 +64,7 @@ function StaffListView({ onEdit }) {
     }
   }
 
+  // Switch the sort column, or flip direction if the same column is clicked again.
   function toggleSort(nextKey) {
     if (sortKey === nextKey) {
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -82,6 +87,7 @@ function StaffListView({ onEdit }) {
     });
   }, [staffs, sortDirection, sortKey]);
 
+  // Render the ascending/descending arrow for the active sort column header.
   function sortIndicator(key) {
     if (sortKey !== key) {
       return "";
@@ -279,6 +285,7 @@ function StaffListView({ onEdit }) {
   );
 }
 
+// Admin tab that toggles between the staff list view and the create/edit form view.
 export default function AdminStaffTab() {
   const [view, setView] = useState("list");
   const [editingStaffId, setEditingStaffId] = useState(null);

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+// Confirms a password reset using the token/verification code from the emailed link.
 export default function PasswordResetPage() {
   const { staffId, token } = useParams();
   const [verificationCode, setVerificationCode] = useState("");
@@ -10,6 +11,7 @@ export default function PasswordResetPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  // Validate the new password confirmation and submit the reset to the API.
   async function handleSubmit(event) {
     event.preventDefault();
     setMessage("");

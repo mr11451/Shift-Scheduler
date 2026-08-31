@@ -21,6 +21,8 @@ const SETTING_KEYS = {
   roleLabels: "roleLabels",
 };
 
+// Admin tab (MASTER-only) for global system settings: calendar view permission, login
+// notifications, holidays, and role labels.
 export default function AdminSystemSettingTab({ onCancel }) {
   const holidayCsvInputRef = useRef(null);
   const [settings, setSettings] = useState({
@@ -39,6 +41,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
     loadSettings();
   }, []);
 
+  // fetchWithAuth wrapper that never triggers a redirect on 401 (settings load should fail gracefully).
   async function authFetchNoRedirect(url, options = {}) {
     const token = localStorage.getItem("authToken");
     const headers = {
@@ -55,6 +58,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
     });
   }
 
+  // Fetch all system settings and populate local form state.
   async function loadSettings() {
     try {
       const res = await authFetchNoRedirect("/api/system-settings");
@@ -86,6 +90,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
     }
   }
 
+  // Sync a form field's value (or checkbox state) into local settings state.
   function handleChange(e) {
     const { name, type, checked, value } = e.target;
     setSettings((prev) => ({
@@ -94,6 +99,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
     }));
   }
 
+  // Toggle a weekday in/out of the holiday-weekday selection.
   function handleHolidayWeekdayToggle(weekday) {
     setSettings((prev) => {
       const isSelected = prev.holidayWeekdays.includes(weekday);
@@ -108,6 +114,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
     });
   }
 
+  // Update a single role's display label.
   function handleRoleLabelChange(roleKey, value) {
     setSettings((prev) => ({
       ...prev,
@@ -118,6 +125,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
     }));
   }
 
+  // Parse an uploaded holiday-dates CSV file and merge it into the holidayDates field.
   async function handleHolidayCsvImport(e) {
     const file = e.target.files?.[0];
 
@@ -147,6 +155,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
     }
   }
 
+  // Persist every changed system setting to the API.
   async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);

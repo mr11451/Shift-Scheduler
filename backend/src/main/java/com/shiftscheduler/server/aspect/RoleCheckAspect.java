@@ -2,22 +2,27 @@ package com.shiftscheduler.server.aspect;
 
 import java.util.Arrays;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpStatus;
 
 import com.shiftscheduler.server.annotation.RequireRole;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @Aspect
 @Component
 public class RoleCheckAspect {
     
+    /**
+     * Enforce {@link RequireRole} on any annotated method by checking the JWT-derived
+     * roleLevel request attribute against the annotation's allowed roles.
+     */
     @Before("@annotation(requireRole)")
     public void checkRole(JoinPoint joinPoint, RequireRole requireRole) {
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();

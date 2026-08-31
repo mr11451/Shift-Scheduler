@@ -32,6 +32,9 @@ public class ShiftTypeService {
   @Autowired
   private AccessControlService accessControlService;
 
+  /**
+   * Create a new shift type, recording who created it for later CHIEF-scoped permission checks.
+   */
   @Transactional
   public ShiftTypeResponse createShiftType(Long creatorStaffId, ShiftTypeCreateRequest request) {
     Staff creator = staffRepository.findById(creatorStaffId)
@@ -67,6 +70,9 @@ public class ShiftTypeService {
     return convertToResponse(saved);
   }
 
+  /**
+   * Update a shift type's editable fields; requester must be MASTER or the CHIEF who created it.
+   */
   @Transactional
   public ShiftTypeResponse updateShiftType(Long shiftTypeId, ShiftTypeUpdateRequest request, Long requesterStaffId) {
     ShiftType shiftType =
@@ -123,6 +129,9 @@ public class ShiftTypeService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Look up a shift type by ID.
+   */
   public ShiftTypeResponse getShiftTypeById(Long shiftTypeId) {
     ShiftType shiftType =
         shiftTypeRepository
@@ -132,6 +141,9 @@ public class ShiftTypeService {
     return convertToResponse(shiftType);
   }
 
+  /**
+   * Look up a shift type by its unique code.
+   */
   public ShiftTypeResponse getShiftTypeByCode(String shiftCode) {
     ShiftType shiftType =
         shiftTypeRepository
@@ -143,6 +155,9 @@ public class ShiftTypeService {
     return convertToResponse(shiftType);
   }
 
+  /**
+   * List every shift type regardless of active status.
+   */
   public List<ShiftTypeResponse> getAllShiftTypes() {
     return shiftTypeRepository.findAll()
         .stream()
@@ -150,6 +165,9 @@ public class ShiftTypeService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * List only active shift types (used when assigning new shifts).
+   */
   public List<ShiftTypeResponse> getAllActiveShiftTypes() {
     return shiftTypeRepository.findAllActive()
         .stream()
@@ -157,6 +175,9 @@ public class ShiftTypeService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * List only active, non-off-type shift types (candidates for auto-generation).
+   */
   public List<ShiftTypeResponse> getAllActiveWorkShifts() {
     return shiftTypeRepository.findAllActiveWorkShifts()
         .stream()
@@ -164,6 +185,10 @@ public class ShiftTypeService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Soft-delete a shift type (logical delete); only affects future auto-generation, not
+   * shift assignments already recorded against it.
+   */
   @Transactional
   public ShiftTypeResponse deactivateShiftType(Long shiftTypeId, Long requesterStaffId) {
     ShiftType shiftType =
@@ -182,6 +207,9 @@ public class ShiftTypeService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Restore a previously deactivated shift type.
+   */
   @Transactional
   public ShiftTypeResponse reactivateShiftType(Long shiftTypeId, Long requesterStaffId) {
     ShiftType shiftType =
@@ -199,6 +227,9 @@ public class ShiftTypeService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Check whether a shift code is already in use.
+   */
   public boolean shiftCodeExists(String shiftCode) {
     return shiftTypeRepository.findByShiftCode(shiftCode).isPresent();
   }
@@ -223,6 +254,9 @@ public class ShiftTypeService {
     throw new IllegalArgumentException("この操作を行う権限がありません。");
   }
 
+  /**
+   * Map the entity to its API response shape.
+   */
   private ShiftTypeResponse convertToResponse(ShiftType shiftType) {
     ShiftTypeResponse response = new ShiftTypeResponse();
     response.setId(shiftType.getId());

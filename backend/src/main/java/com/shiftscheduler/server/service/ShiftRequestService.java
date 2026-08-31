@@ -41,6 +41,9 @@ public class ShiftRequestService {
   @Autowired
   private AccessControlService accessControlService;
 
+  /**
+   * Create a DRAFT desired-shift request for the given staff member.
+   */
   @Transactional
   public ShiftRequestResponse createShiftRequest(Long staffId, ShiftRequestCreateRequest request) {
     // Validate required fields
@@ -78,6 +81,9 @@ public class ShiftRequestService {
     return convertToResponse(saved);
   }
 
+  /**
+   * Update the desired shift on a DRAFT request owned by the requesting staff member.
+   */
   @Transactional
   public ShiftRequestResponse updateShiftRequest(Long staffId, Long shiftRequestId, ShiftRequestUpdateRequest request) {
     ShiftRequest shiftRequest = shiftRequestRepository.findById(shiftRequestId)
@@ -114,6 +120,9 @@ public class ShiftRequestService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Move a DRAFT request to SUBMITTED, locking it in for admin review.
+   */
   @Transactional
   public ShiftRequestResponse submitShiftRequest(Long staffId, Long shiftRequestId) {
     ShiftRequest shiftRequest = shiftRequestRepository.findById(shiftRequestId)
@@ -139,6 +148,9 @@ public class ShiftRequestService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Approve a SUBMITTED request; only MASTER/CHIEF may approve.
+   */
   @Transactional
   public ShiftRequestResponse approveShiftRequest(Long editorStaffId, Long shiftRequestId) {
     ShiftRequest shiftRequest = shiftRequestRepository.findById(shiftRequestId)
@@ -165,6 +177,9 @@ public class ShiftRequestService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Reject a SUBMITTED request; only MASTER/CHIEF may reject.
+   */
   @Transactional
   public ShiftRequestResponse rejectShiftRequest(Long editorStaffId, Long shiftRequestId) {
     ShiftRequest shiftRequest = shiftRequestRepository.findById(shiftRequestId)
@@ -191,6 +206,9 @@ public class ShiftRequestService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Delete a DRAFT request owned by the requesting staff member.
+   */
   @Transactional
   public void deleteShiftRequest(Long staffId, Long shiftRequestId) {
     ShiftRequest shiftRequest = shiftRequestRepository.findById(shiftRequestId)
@@ -209,6 +227,9 @@ public class ShiftRequestService {
     shiftRequestRepository.delete(shiftRequest);
   }
 
+  /**
+   * Reject edits to requests whose work date has already passed.
+   */
   private void assertRequestIsEditable(ShiftRequest shiftRequest) {
     if (shiftRequest.getWorkDate() != null && shiftRequest.getWorkDate().isBefore(LocalDate.now())) {
       throw new IllegalArgumentException("過去の日付の申請は操作できません。");
@@ -253,12 +274,18 @@ public class ShiftRequestService {
     shiftRequestRepository.saveAll(submittedRequests);
   }
 
+  /**
+   * Look up a shift request by ID.
+   */
   public ShiftRequestResponse getShiftRequestById(Long shiftRequestId) {
     ShiftRequest shiftRequest = shiftRequestRepository.findById(shiftRequestId)
         .orElseThrow(() -> new IllegalArgumentException("シフト要望が見つかりません。"));
     return convertToResponse(shiftRequest);
   }
 
+  /**
+   * List a staff member's requests within a date range.
+   */
   public List<ShiftRequestResponse> getShiftRequestsByStaffAndDateRange(Long staffId, LocalDate startDate, LocalDate endDate) {
     return shiftRequestRepository.findByStaffIdAndDateRange(staffId, startDate, endDate)
         .stream()
@@ -266,6 +293,9 @@ public class ShiftRequestService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * List a staff member's requests within a date range, filtered by status.
+   */
   public List<ShiftRequestResponse> getShiftRequestsByStaffStatusAndDateRange(Long staffId, ShiftRequestStatus status, LocalDate startDate, LocalDate endDate) {
     return shiftRequestRepository.findByStaffIdAndDateRangeAndStatus(staffId, startDate, endDate, status)
         .stream()
@@ -273,6 +303,9 @@ public class ShiftRequestService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * List all requests from staff in a group within a date range.
+   */
   public List<ShiftRequestResponse> getShiftRequestsByGroupAndDateRange(Long groupId, LocalDate startDate, LocalDate endDate) {
     return shiftRequestRepository.findByGroupIdAndDateRange(groupId, startDate, endDate)
         .stream()
@@ -280,6 +313,10 @@ public class ShiftRequestService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * List SUBMITTED requests within a date range that have not yet been reconciled
+   * (approved/rejected) against confirmed shift assignments.
+   */
   public List<ShiftRequestResponse> getUnreflectedShiftRequestsByDateRange(LocalDate startDate, LocalDate endDate) {
     return shiftRequestRepository.findUnreflectedByDateRange(startDate, endDate, ShiftRequestStatus.SUBMITTED)
         .stream()
@@ -287,6 +324,9 @@ public class ShiftRequestService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Map the entity to its API response shape.
+   */
   private ShiftRequestResponse convertToResponse(ShiftRequest shiftRequest) {
     ShiftRequestResponse response = new ShiftRequestResponse();
     response.setId(shiftRequest.getId());

@@ -15,6 +15,7 @@ const WEEKDAY_LABEL_TO_INDEX = {
   "土": 6,
 };
 
+// Parse a comma/newline separated list of "YYYY-MM-DD"-ish date strings into normalized dates.
 export function parseHolidayDates(rawValue = "") {
   if (typeof rawValue !== "string") {
     return [];
@@ -28,6 +29,7 @@ export function parseHolidayDates(rawValue = "") {
     .filter(Boolean);
 }
 
+// Extract and normalize every date-like token found in an imported CSV's raw text.
 export function parseHolidayDatesFromCsv(rawValue = "") {
   if (typeof rawValue !== "string") {
     return [];
@@ -43,6 +45,7 @@ export function parseHolidayDatesFromCsv(rawValue = "") {
   return Array.from(uniqueDates);
 }
 
+// Parse a comma/newline separated list of weekday numbers/kanji labels into sorted weekday indexes.
 export function parseHolidayWeekdays(rawValue = "") {
   if (typeof rawValue !== "string") {
     return [];
@@ -58,6 +61,7 @@ export function parseHolidayWeekdays(rawValue = "") {
   return Array.from(uniqueWeekdays).sort((left, right) => left - right);
 }
 
+// Whether a date is a configured holiday, either by exact date or by recurring weekday.
 export function isHolidayDate(dateStr, holidayDates = [], holidayWeekdays = []) {
   if (holidayDates.includes(dateStr)) {
     return true;
@@ -71,6 +75,7 @@ export function isHolidayDate(dateStr, holidayDates = [], holidayWeekdays = []) 
   return holidayWeekdays.includes(weekday);
 }
 
+// Normalize a single date-like string ("2024/1/1", "2024年1月1日", ...) into "YYYY-MM-DD".
 function normalizeHolidayDate(value) {
   const trimmed = value.trim();
 
@@ -89,6 +94,7 @@ function normalizeHolidayDate(value) {
   return trimmed;
 }
 
+// Normalize a single weekday token (numeric or kanji) into its 0-6 index, or null if invalid.
 function normalizeHolidayWeekday(value) {
   const trimmed = String(value || "").trim();
 

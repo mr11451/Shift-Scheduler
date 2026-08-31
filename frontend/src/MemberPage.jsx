@@ -19,6 +19,8 @@ const STATUS_LABELS = {
   CANCELED: "取り消し済",
 };
 
+// Monthly calendar grid showing a selected staff member's shift assignments/requests,
+// with month navigation and (for MEMBER) a calendar-view permission request control.
 function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendarDate, setCalendarDate, shiftAssignments, shiftRequests, holidayDates, holidayWeekdays, isMonthConfirmed, calendarViewPermissionEnabled, isMember, permissionTargets, submittedPermissionTargetIds, onRequestPermission }) {
   const [selectedPermissionTargetId, setSelectedPermissionTargetId] = useState("");
   const selectedPermissionIsSubmitted = submittedPermissionTargetIds.includes(Number(selectedPermissionTargetId));
@@ -200,6 +202,7 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
   );
 }
 
+// Desired-shift request form plus lists of submitted requests and calendar-view permission requests.
 function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftTypeId, onSubmit, loading, message, messageType, shiftRequests, onDeleteRequest, onSubmitRequest, calendarViewPermissionEnabled, permissionRequests, onApprovePermission, onRejectPermission, onCancelPermission, approvedPermissions, onRemoveViewTarget, holidayDates, holidayWeekdays, isMonthConfirmed }) {
   const sortedRequests = [...(shiftRequests || [])].sort((a, b) => (b.workDate || "").localeCompare(a.workDate || ""));
 
@@ -343,6 +346,7 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
   );
 }
 
+// Member-facing screen: view the shift calendar and submit/manage desired-shift requests.
 export default function MemberPage() {
   const navigate = useNavigate();
   const { auth, logout } = useContext(AuthContext);
@@ -465,6 +469,7 @@ export default function MemberPage() {
     loadConfirmationStatusForDate(year, month);
   }, [workDate]);
 
+  // Fetch staff visible to the logged-in user, hiding ungrouped MASTER staff from shift screens.
   async function loadStaffs() {
     try {
       const res = await fetchWithAuth("/api/staffs");
@@ -478,6 +483,7 @@ export default function MemberPage() {
     }
   }
 
+  // Fetch calendar-view permissions this user has approved for others.
   async function loadApprovedPermissions() {
     if (!auth?.staffId) return;
     try {
@@ -491,6 +497,7 @@ export default function MemberPage() {
     }
   }
 
+  // Fetch pending calendar-view permission requests directed at this user.
   async function loadPermissionRequests() {
     if (!auth?.staffId) return;
     try {
@@ -502,6 +509,7 @@ export default function MemberPage() {
     }
   }
 
+  // Fetch this user's own submitted (pending) calendar-view permission requests.
   async function loadSubmittedPermissionRequests() {
     if (!auth?.staffId) return;
     try {
@@ -516,6 +524,7 @@ export default function MemberPage() {
     }
   }
 
+  // Fetch same-group staff this user could request calendar-view permission from.
   async function loadPermissionTargets() {
     if (!auth?.staffId) return;
     try {
@@ -528,6 +537,7 @@ export default function MemberPage() {
     }
   }
 
+  // Fetch active shift types for the desired-shift request dropdown.
   async function loadShiftTypes() {
     try {
       const res = await fetchWithAuth("/api/shift-types/active");
@@ -539,6 +549,7 @@ export default function MemberPage() {
     }
   }
 
+  // Fetch configured holiday dates/weekdays used to shade the calendar.
   async function loadHolidayDates() {
     try {
       const res = await fetchWithAuth("/api/system-settings");
@@ -556,6 +567,7 @@ export default function MemberPage() {
     }
   }
 
+  // Fetch the configured role display labels.
   async function loadRoleLabels() {
     try {
       const res = await fetchWithAuth("/api/system-settings/roleLabels");
@@ -571,6 +583,7 @@ export default function MemberPage() {
     }
   }
 
+  // Check whether the calendar-view permission feature is enabled system-wide.
   async function loadCalendarViewPermissionSetting() {
     try {
       const res = await fetchWithAuth("/api/system-settings/calendarViewPermissionEnabled");
@@ -582,6 +595,7 @@ export default function MemberPage() {
     }
   }
 
+  // Check whether the displayed calendar month has been confirmed.
   async function loadCurrentMonthConfirmationStatus(date) {
     try {
       const year = date.getFullYear();
@@ -598,6 +612,7 @@ export default function MemberPage() {
     }
   }
 
+  // Check whether the given year/month has been confirmed (used for the request form's date).
   async function loadConfirmationStatusForDate(year, month) {
     try {
       const res = await fetchWithAuth(`/api/system-settings/confirmedShiftMonths/status?year=${year}&month=${month}`);
@@ -612,6 +627,7 @@ export default function MemberPage() {
     }
   }
 
+  // Fetch the selected staff member's desired-shift requests within a date range.
   async function loadShiftRequests(start, end) {
     try {
       const res = await fetchWithAuth(`/api/shift-requests/staff/${selectedStaffId}?startDate=${start}&endDate=${end}`);
@@ -622,6 +638,7 @@ export default function MemberPage() {
     }
   }
 
+  // Fetch this user's own submitted (pending) desired-shift requests.
   async function loadSubmittedShiftRequests() {
     try {
       const now = new Date();
@@ -635,6 +652,7 @@ export default function MemberPage() {
     }
   }
 
+  // Fetch the selected staff member's confirmed shift assignments within a date range.
   async function loadShiftAssignments(start, end) {
     try {
       const res = await fetchWithAuth(`/api/shift-assignments/staff/${selectedStaffId}?startDate=${start}&endDate=${end}`);
@@ -645,12 +663,14 @@ export default function MemberPage() {
     }
   }
 
+  // Display a transient success/error message banner.
   function showMessage(msg, type) {
     setMessage(msg);
     setMessageType(type);
     setTimeout(() => setMessage(""), 4000);
   }
 
+  // Submit a calendar-view permission request for another staff member in the same group.
   async function requestPermission(targetStaffId) {
     if (!calendarViewPermissionEnabled) return;
     try {
@@ -675,6 +695,7 @@ export default function MemberPage() {
     }
   }
 
+  // Request a password reset email/link for the logged-in user.
   async function requestPasswordReset() {
     if (!window.confirm("登録済みメールアドレスへパスワード変更URLと確認コードを送信しますか？")) return;
     try {
@@ -693,11 +714,13 @@ export default function MemberPage() {
     }
   }
 
+  // Clear the session and navigate back to the login page.
   function handleLogout() {
     logout();
     navigate("/login", { replace: true });
   }
 
+  // Switch which staff member's calendar is displayed and reload their data.
   function handleStaffSelection(nextStaffId) {
     if (!nextStaffId) {
       setSelectedStaffId("");
@@ -732,6 +755,7 @@ export default function MemberPage() {
     requestPermission(nextStaffId);
   }
 
+  // Approve, reject, or cancel a calendar-view permission request.
   async function handlePermissionAction(permissionId, action) {
     try {
       const res = await fetchWithAuth(`/api/calendar-view-permissions/${permissionId}/${action}`, {
@@ -749,6 +773,7 @@ export default function MemberPage() {
     }
   }
 
+  // Create a new desired-shift request (or vacation request) for the selected date.
   async function onSubmit(event) {
     event.preventDefault();
     if (!shiftTypeId) return showMessage("シフトタイプを選択してください。", "error");
@@ -794,6 +819,7 @@ export default function MemberPage() {
     }
   }
 
+  // Submit a DRAFT desired-shift request for admin review.
   async function handleSubmitRequest(requestId) {
     if (!window.confirm("この申請を提出しますか？")) return;
 
@@ -816,6 +842,7 @@ export default function MemberPage() {
     }
   }
 
+  // Delete a DRAFT desired-shift request.
   async function handleDeleteRequest(requestId) {
     if (!window.confirm("この申請を削除しますか？")) return;
 

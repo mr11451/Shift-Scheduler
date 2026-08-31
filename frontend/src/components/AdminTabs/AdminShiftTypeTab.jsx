@@ -2,6 +2,8 @@ import React, { useState, useEffect, useContext } from "react";
 import { fetchWithAuth } from "../../utils/fetchWithAuth";
 import { AuthContext } from "../../context/AuthContext";
 
+// Admin tab for managing shift types. CHIEF can only add; edit/deactivate is limited to
+// MASTER or the CHIEF who created the entry.
 export default function AdminShiftTypeTab() {
   const { auth } = useContext(AuthContext);
   const isChiefRole = String(auth?.roleLevel || "").toUpperCase() === "CHIEF";
@@ -24,6 +26,7 @@ export default function AdminShiftTypeTab() {
     loadShiftTypes();
   }, []);
 
+  // Fetch the full shift type list (active and inactive) from the API.
   async function loadShiftTypes() {
     try {
       setLoading(true);
@@ -43,6 +46,7 @@ export default function AdminShiftTypeTab() {
     }
   }
 
+  // Populate the form with an existing shift type's values and switch to edit view (blocked for CHIEF).
   function handleEdit(shiftType) {
     if (isChiefRole) {
       return;
@@ -60,6 +64,7 @@ export default function AdminShiftTypeTab() {
     setView("form");
   }
 
+  // Reset the form for creating a brand-new shift type.
   function handleNewShiftType() {
     setForm({
       shiftCode: "",
@@ -73,6 +78,7 @@ export default function AdminShiftTypeTab() {
     setView("form");
   }
 
+  // Sync a form field's value (or checkbox state) into local form state.
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
     setForm((prev) => ({
@@ -81,6 +87,7 @@ export default function AdminShiftTypeTab() {
     }));
   }
 
+  // Validate and submit the create/update form to the API.
   async function handleSubmit(e) {
     e.preventDefault();
     setMessage("");
@@ -131,6 +138,7 @@ export default function AdminShiftTypeTab() {
     }
   }
 
+  // Toggle a shift type's active/inactive status (logical delete/restore), blocked for CHIEF.
   async function handleToggleActive(shiftType) {
     if (isChiefRole) {
       return;

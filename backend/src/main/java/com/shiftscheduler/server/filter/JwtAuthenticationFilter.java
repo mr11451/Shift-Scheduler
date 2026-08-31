@@ -36,6 +36,10 @@ public class JwtAuthenticationFilter implements Filter {
         this.staffRepository = staffRepository;
     }
     
+    /**
+     * Reject unauthenticated /api/ requests and, on success, attach staffId/roleLevel to the
+     * request so downstream controllers and {@link com.shiftscheduler.server.aspect.RoleCheckAspect} can use them.
+     */
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
@@ -105,6 +109,9 @@ public class JwtAuthenticationFilter implements Filter {
         }
     }
     
+    /**
+     * Check whether the given path is exempt from authentication (login, password reset).
+     */
     private boolean isPublicUrl(String path) {
         return PUBLIC_URLS.stream().anyMatch(publicUrl -> {
             if (publicUrl.endsWith("/")) {

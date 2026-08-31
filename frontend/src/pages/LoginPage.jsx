@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import './LoginPage.css';
 
+// Where to send the user after login: back to the originally requested page, or /member by default.
 function resolveRedirectPath(rawFrom) {
   if (typeof rawFrom !== 'string' || !rawFrom.startsWith('/')) {
     return '/member';
@@ -13,6 +14,7 @@ function resolveRedirectPath(rawFrom) {
   return rawFrom;
 }
 
+// Staff code / password login form.
 export default function LoginPage() {
   const [staffCode, setStaffCode] = useState('');
   const [password, setPassword] = useState('');
@@ -29,6 +31,7 @@ export default function LoginPage() {
     }
   }, [auth, authLoading, navigate, redirectPath]);
 
+  // Submit credentials to the login API and store the resulting session on success.
   async function handleLogin(e) {
     e.preventDefault();
     setError('');

@@ -116,6 +116,9 @@ public class AccessControlService {
         return editor != null && editor.getRoleLevel() == RoleLevel.MEMBER;
     }
 
+    /**
+     * Check if the editor and target staff belong to the same (non-null) group
+     */
     private boolean isSameGroup(Staff editor, Staff targetStaff) {
         if (editor == null || targetStaff == null) {
             return false;

@@ -1,21 +1,21 @@
 package com.shiftscheduler.server.service;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.shiftscheduler.server.api.CalendarViewPermissionCreateRequest;
 import com.shiftscheduler.server.api.CalendarViewPermissionResponse;
-import com.shiftscheduler.server.api.CalendarViewPermissionUpdateRequest;
 import com.shiftscheduler.server.domain.CalendarViewPermission;
 import com.shiftscheduler.server.domain.CalendarViewPermissionStatus;
 import com.shiftscheduler.server.domain.Staff;
 import com.shiftscheduler.server.repository.CalendarViewPermissionRepository;
 import com.shiftscheduler.server.repository.StaffRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class CalendarViewPermissionService {
@@ -29,6 +29,9 @@ public class CalendarViewPermissionService {
   @Autowired
   private SystemSettingService systemSettingService;
 
+  /**
+   * Create a pending calendar-view request from a MEMBER to another staff in the same group.
+   */
   @Transactional
   public CalendarViewPermissionResponse createCalendarViewPermission(Long requesterStaffId, CalendarViewPermissionCreateRequest request) {
     // Validate required fields
@@ -66,6 +69,9 @@ public class CalendarViewPermissionService {
     return convertToResponse(saved);
   }
 
+  /**
+   * Approve a pending permission request; only the target staff may approve.
+   */
   @Transactional
   public CalendarViewPermissionResponse approveCalendarViewPermission(Long approverStaffId, Long permissionId) {
     CalendarViewPermission permission = calendarViewPermissionRepository.findById(permissionId)
@@ -92,6 +98,9 @@ public class CalendarViewPermissionService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Reject a pending permission request; only the target staff may reject.
+   */
   @Transactional
   public CalendarViewPermissionResponse rejectCalendarViewPermission(Long rejecterStaffId, Long permissionId) {
     CalendarViewPermission permission = calendarViewPermissionRepository.findById(permissionId)
@@ -118,6 +127,9 @@ public class CalendarViewPermissionService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Cancel a pending permission request; only the original requester may cancel.
+   */
   @Transactional
   public CalendarViewPermissionResponse cancelCalendarViewPermission(Long requesterStaffId, Long permissionId) {
     CalendarViewPermission permission = calendarViewPermissionRepository.findById(permissionId)
@@ -141,21 +153,33 @@ public class CalendarViewPermissionService {
     return convertToResponse(updated);
   }
 
+  /**
+   * Look up a single permission request by ID.
+   */
   public CalendarViewPermissionResponse getCalendarViewPermissionById(Long permissionId) {
     CalendarViewPermission permission = calendarViewPermissionRepository.findById(permissionId)
         .orElseThrow(() -> new IllegalArgumentException("権限申請が見つかりません。"));
     return convertToResponse(permission);
   }
 
+  /**
+   * Get the approved permission (if any) allowing the requester to view the target's calendar.
+   */
   public Optional<CalendarViewPermissionResponse> getApprovedCalendarViewPermissionsForRequester(Long requesterStaffId, Long targetStaffId) {
     return calendarViewPermissionRepository.findApprovedPermission(requesterStaffId, targetStaffId, CalendarViewPermissionStatus.APPROVED)
         .map(this::convertToResponse);
   }
 
+  /**
+   * List staff IDs whose calendars the requester has approved access to.
+   */
   public List<Long> getApprovedTargetStaffIdsForRequester(Long requesterStaffId) {
     return calendarViewPermissionRepository.findApprovedTargetStaffIds(requesterStaffId, CalendarViewPermissionStatus.APPROVED);
   }
 
+  /**
+   * List permission requests made by the given requester, filtered by status.
+   */
   public List<CalendarViewPermissionResponse> getCalendarViewPermissionsByRequesterAndStatus(Long requesterStaffId, CalendarViewPermissionStatus status) {
     return calendarViewPermissionRepository.findByRequesterAndStatus(requesterStaffId, status)
         .stream()
@@ -163,6 +187,9 @@ public class CalendarViewPermissionService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * List permission requests directed at the given target staff, filtered by status.
+   */
   public List<CalendarViewPermissionResponse> getCalendarViewPermissionsByTargetAndStatus(Long targetStaffId, CalendarViewPermissionStatus status) {
     return calendarViewPermissionRepository.findByTargetStaffIdAndStatus(targetStaffId, status)
         .stream()
@@ -170,6 +197,9 @@ public class CalendarViewPermissionService {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Map the entity to its API response shape.
+   */
   private CalendarViewPermissionResponse convertToResponse(CalendarViewPermission permission) {
     CalendarViewPermissionResponse response = new CalendarViewPermissionResponse();
     response.setId(permission.getId());

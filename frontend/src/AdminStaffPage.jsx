@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import StaffForm from "./components/StaffForm";
 import { DEFAULT_ROLE_LABELS, parseRoleLabels } from "./utils/roleLabels";
 
+// Sortable list of all staff with edit/delete actions, feeding into StaffForm for create/edit.
 function StaffListView({ onEdit }) {
   const [staffs, setStaffs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +18,7 @@ function StaffListView({ onEdit }) {
     loadRoleLabels();
   }, []);
 
+  // Fetch the staff list visible to the current requester.
   async function loadStaffs() {
     try {
       setLoading(true);
@@ -31,6 +33,7 @@ function StaffListView({ onEdit }) {
     }
   }
 
+  // Fetch the configured role display labels, falling back to defaults on failure.
   async function loadRoleLabels() {
     try {
       const res = await fetch("/api/system-settings/roleLabels");
@@ -46,6 +49,7 @@ function StaffListView({ onEdit }) {
     }
   }
 
+  // Deactivate (logically delete) a staff member after confirmation.
   async function handleDelete(staffId) {
     if (!window.confirm("このスタッフを削除してもよろしいですか？")) return;
     try {
@@ -60,6 +64,7 @@ function StaffListView({ onEdit }) {
     }
   }
 
+  // Switch the sort column, or flip direction if the same column is clicked again.
   function toggleSort(nextKey) {
     if (sortKey === nextKey) {
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -82,6 +87,7 @@ function StaffListView({ onEdit }) {
     });
   }, [staffs, sortDirection, sortKey]);
 
+  // Render the ascending/descending arrow for the active sort column header.
   function sortIndicator(key) {
     if (sortKey !== key) {
       return "";
@@ -197,6 +203,7 @@ function StaffListView({ onEdit }) {
   );
 }
 
+// Standalone page wrapper toggling between the staff list and the create/edit form.
 export default function AdminStaffPage() {
   const [view, setView] = useState("list");
   const [editingStaffId, setEditingStaffId] = useState(null);

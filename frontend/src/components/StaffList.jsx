@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import "./StaffList.css";
 import { fetchWithAuth } from "../utils/fetchWithAuth";
 
+// Read-only staff calendar grouped by group, with month navigation.
 export default function StaffList() {
   const [staffsByGroup, setStaffsByGroup] = useState({});
   const [message, setMessage] = useState("");
@@ -13,6 +14,7 @@ export default function StaffList() {
     loadStaffsGrouped();
   }, []);
 
+  // Fetch staff grouped for calendar display.
   async function loadStaffsGrouped() {
     try {
       setLoading(true);
@@ -54,14 +56,17 @@ export default function StaffList() {
     }
   }
 
+  // Navigate the calendar to the previous month.
   function previousMonth() {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
   }
 
+  // Navigate the calendar to the next month.
   function nextMonth() {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
   }
 
+  // Number of days in the given month.
   function getDaysInMonth(date) {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   }

@@ -7,6 +7,9 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+/**
+ * SMTP-backed implementation, auto-selected as primary when spring.mail.host is configured.
+ */
 @Service
 @Primary
 @ConditionalOnExpression("'${spring.mail.host:}'.trim().length() > 0")
