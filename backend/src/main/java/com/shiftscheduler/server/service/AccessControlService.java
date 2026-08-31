@@ -31,7 +31,7 @@ public class AccessControlService {
             if (editor.getId().equals(targetStaff.getId())) {
                 return true;
             }
-            if (targetStaff.getRoleLevel() == RoleLevel.MEMBER && isSameGroup(editor, targetStaff)) {
+            if (isSameGroupManagedRole(targetStaff) && isSameGroup(editor, targetStaff)) {
                 return true;
             }
         }
@@ -57,9 +57,9 @@ public class AccessControlService {
             return true;
         }
 
-        // CHIEF can edit members in the same group
+        // CHIEF can edit members in the same group, and MASTER staff who belong to the same group
         if (editor.getRoleLevel() == RoleLevel.CHIEF) {
-            if (targetStaff.getRoleLevel() == RoleLevel.MEMBER && isSameGroup(editor, targetStaff)) {
+            if (isSameGroupManagedRole(targetStaff) && isSameGroup(editor, targetStaff)) {
                 return true;
             }
         }
@@ -125,5 +125,17 @@ public class AccessControlService {
         }
         return editor.getGroup().getId() != null
                 && editor.getGroup().getId().equals(targetStaff.getGroup().getId());
+    }
+
+    /**
+     * A MASTER/CHIEF counts as a same-group target only when they belong to a group;
+     * a MEMBER always counts regardless of group membership checks done elsewhere.
+     */
+    private boolean isSameGroupManagedRole(Staff targetStaff) {
+        if (targetStaff.getRoleLevel() == RoleLevel.MEMBER) {
+            return true;
+        }
+        return (targetStaff.getRoleLevel() == RoleLevel.MASTER || targetStaff.getRoleLevel() == RoleLevel.CHIEF)
+                && targetStaff.getGroup() != null;
     }
 }

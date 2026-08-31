@@ -471,7 +471,8 @@ export default function MemberPage() {
       if (!res.ok) throw new Error("スタッフ一覧の取得に失敗しました。");
       const staffList = await res.json();
       setStaffs(staffList);
-      setViewableStaffs(staffList);
+      // Ungrouped MASTER staff are hidden from shift screens.
+      setViewableStaffs(staffList.filter((staff) => staff.roleLevel !== "MASTER" || staff.groupId));
     } catch (e) {
       showMessage(e.message, "error");
     }

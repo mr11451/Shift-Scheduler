@@ -28,6 +28,7 @@ import com.shiftscheduler.server.api.AutoShiftGenerationResultResponse;
 import com.shiftscheduler.server.api.ShiftAssignmentCreateRequest;
 import com.shiftscheduler.server.api.ShiftAssignmentResponse;
 import com.shiftscheduler.server.api.ShiftAssignmentUpdateRequest;
+import com.shiftscheduler.server.domain.RoleLevel;
 import com.shiftscheduler.server.domain.ShiftAssignment;
 import com.shiftscheduler.server.domain.ShiftRequest;
 import com.shiftscheduler.server.domain.ShiftRequestStatus;
@@ -219,6 +220,7 @@ public class ShiftAssignmentService {
 
     List<Long> editableStaffIds = staffRepository.findAllByIsActiveTrue().stream()
         .filter(staff -> accessControlService.canEditShift(editor, staff))
+        .filter(this::isSchedulableForShifts)
         .map(Staff::getId)
         .toList();
 
@@ -251,6 +253,13 @@ public class ShiftAssignmentService {
     }
 
     return deletedCount;
+  }
+
+  /**
+   * MASTER staff without a group are excluded from shift screens; they are not scheduled.
+   */
+  private boolean isSchedulableForShifts(Staff staff) {
+    return !(staff.getRoleLevel() == RoleLevel.MASTER && staff.getGroup() == null);
   }
 
   // ===== 自動生成コンテキスト =====
@@ -393,6 +402,7 @@ public class ShiftAssignmentService {
 
     List<Staff> editableStaffs = staffRepository.findAllByIsActiveTrue().stream()
         .filter(staff -> accessControlService.canEditShift(editor, staff))
+        .filter(this::isSchedulableForShifts)
         .sorted(Comparator.comparing(Staff::getStaffCode, Comparator.nullsLast(String::compareTo)))
         .collect(Collectors.toList());
 

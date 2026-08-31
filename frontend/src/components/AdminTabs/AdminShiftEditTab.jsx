@@ -122,12 +122,15 @@ export default function AdminShiftEditTab() {
 
   function groupStaffs(staffs) {
     const groups = {};
-    staffs.forEach((staff) => {
-      const groupName = (staff.groupName && String(staff.groupName).trim())
-        || (staff.groupId ? `グループ ${staff.groupId}` : "未分類");
-      if (!groups[groupName]) groups[groupName] = [];
-      groups[groupName].push(staff);
-    });
+    staffs
+      // Ungrouped MASTER staff are hidden from shift screens.
+      .filter((staff) => staff.roleLevel !== "MASTER" || staff.groupId)
+      .forEach((staff) => {
+        const groupName = (staff.groupName && String(staff.groupName).trim())
+          || (staff.groupId ? `グループ ${staff.groupId}` : "未分類");
+        if (!groups[groupName]) groups[groupName] = [];
+        groups[groupName].push(staff);
+      });
 
     // Sort groups and staff within groups
     const sorted = Object.entries(groups)
