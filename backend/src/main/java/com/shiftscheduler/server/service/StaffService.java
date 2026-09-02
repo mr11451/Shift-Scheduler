@@ -359,7 +359,17 @@ public class StaffService {
             response.setGroupName(staff.getGroup().getGroupName());
         }
         response.setIsActive(staff.getIsActive());
+        response.setLoggedIn(staff.getLoginSessionId() != null);
         return response;
+    }
+
+    /** Invalidate the current login session for a staff member. */
+    @Transactional
+    public void forceLogout(Long staffId) {
+        Staff staff = staffRepository.findById(staffId)
+                .orElseThrow(() -> new IllegalArgumentException("Staff not found"));
+        staff.setLoginSessionId(null);
+        staffRepository.save(staff);
     }
 
     /**
@@ -368,6 +378,7 @@ public class StaffService {
     public Staff deactivateStaff(Long staffId) {
         Staff staff = staffRepository.findById(staffId).orElseThrow(() -> new IllegalArgumentException("Staff not found"));
         staff.setIsActive(false);
+        staff.setLoginSessionId(null);
         staff.setUpdatedAt(OffsetDateTime.now());
         return staffRepository.save(staff);
     }

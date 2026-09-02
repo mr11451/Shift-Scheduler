@@ -64,6 +64,20 @@ function StaffListView({ onEdit }) {
     }
   }
 
+  async function handleForceLogout(staff) {
+    if (!staff.loggedIn || !window.confirm(`${staff.staffName}を強制ログアウトしますか？`)) return;
+    try {
+      const res = await fetchWithAuth(`/api/staffs/${staff.id}/force-logout`, { method: "POST" });
+      if (!res.ok) throw new Error("強制ログアウトに失敗しました。");
+      setMessage(`${staff.staffName}を強制ログアウトしました。`);
+      setMessageType("success");
+      await loadStaffs();
+    } catch (e) {
+      setMessage(e.message);
+      setMessageType("error");
+    }
+  }
+
   // Switch the sort column, or flip direction if the same column is clicked again.
   function toggleSort(nextKey) {
     if (sortKey === nextKey) {
@@ -274,6 +288,23 @@ function StaffListView({ onEdit }) {
                     }}
                   >
                     削除
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleForceLogout(staff)}
+                    disabled={!staff.loggedIn}
+                    style={{
+                      padding: "0.4rem 0.8rem",
+                      marginLeft: "0.5rem",
+                      backgroundColor: staff.loggedIn ? "#b45309" : "#d1d5db",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: staff.loggedIn ? "pointer" : "not-allowed",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    {staff.loggedIn ? "強制ログアウト" : "未ログイン"}
                   </button>
                 </td>
               </tr>

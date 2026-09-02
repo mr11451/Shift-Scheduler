@@ -41,8 +41,9 @@ export function AuthProvider({ children }) {
     const resetInactivityTimer = () => {
       window.clearTimeout(timeoutId);
       timeoutId = window.setTimeout(() => {
-        logout();
-        window.location.href = '/login?reason=timeout';
+        logout().finally(() => {
+          window.location.href = '/login?reason=timeout';
+        });
       }, INACTIVITY_TIMEOUT_MS);
     };
     const activityEvents = ['click', 'keydown', 'pointermove', 'touchstart'];
@@ -71,14 +72,17 @@ export function AuthProvider({ children }) {
   }
 
   // Clear the persisted session and reset context state.
-  function logout() {
+  async function logout() {
     const token = localStorage.getItem('authToken');
     if (token) {
-      fetch('/api/logout', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        keepalive: true,
-      }).catch(() => {});
+      try {
+        await fetch('/api/logout', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (error) {
+        console.error('ログアウト処理に失敗しました。', error);
+      }
     }
     localStorage.removeItem('authToken');
     localStorage.removeItem('staffId');

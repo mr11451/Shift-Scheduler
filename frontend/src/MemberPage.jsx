@@ -720,8 +720,8 @@ export default function MemberPage() {
   }
 
   // Clear the session and navigate back to the login page.
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     navigate("/login", { replace: true });
   }
 

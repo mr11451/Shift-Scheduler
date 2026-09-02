@@ -15,6 +15,7 @@ public class StaffResponse {
     private Long groupId;
     private String groupName;
     private Boolean isActive;
+    private Boolean loggedIn;
 
     // Constructors
     public StaffResponse() {}
@@ -114,5 +115,13 @@ public class StaffResponse {
 
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    public Boolean getLoggedIn() {
+        return loggedIn;
+    }
+
+    public void setLoggedIn(Boolean loggedIn) {
+        this.loggedIn = loggedIn;
     }
 }

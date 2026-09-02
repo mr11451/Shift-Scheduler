@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.shiftscheduler.server.domain.Staff;
+import com.shiftscheduler.server.annotation.RequireRole;
 import com.shiftscheduler.server.dto.StaffCreateRequest;
 import com.shiftscheduler.server.dto.StaffCreateResponse;
 import com.shiftscheduler.server.dto.StaffResponse;
@@ -141,6 +142,18 @@ public class StaffApiController {
     public ResponseEntity<Void> deactivateStaff(@PathVariable Long staffId) {
         try {
             staffService.deactivateStaff(staffId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /** POST /api/staffs/{staffId}/force-logout - Invalidate a staff member's active session. */
+    @PostMapping("/{staffId}/force-logout")
+    @RequireRole(roles = {"CHIEF", "MASTER"})
+    public ResponseEntity<Void> forceLogout(@PathVariable Long staffId) {
+        try {
+            staffService.forceLogout(staffId);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
