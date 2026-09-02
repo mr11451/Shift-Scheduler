@@ -4,6 +4,7 @@ import { AuthContext } from "./context/AuthContext";
 import { fetchWithAuth } from "./utils/fetchWithAuth";
 import { isHolidayDate, parseHolidayDates, parseHolidayWeekdays } from "./utils/holidayDates";
 import { getMonthStatus } from "./utils/shiftMonthStatus";
+import { getDatesInShiftPeriod, getShiftPeriod, normalizeClosingDay, toLocalDateString } from "./utils/shiftPeriod";
 import { canSelectTarget } from "./utils/viewAccess";
 import { DEFAULT_ROLE_LABELS, parseRoleLabels } from "./utils/roleLabels";
 
@@ -21,17 +22,12 @@ const STATUS_LABELS = {
 
 // Monthly calendar grid showing a selected staff member's shift assignments/requests,
 // with month navigation and (for MEMBER) a calendar-view permission request control.
-function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendarDate, setCalendarDate, shiftAssignments, shiftRequests, holidayDates, holidayWeekdays, isMonthConfirmed, calendarViewPermissionEnabled, isMember, permissionTargets, submittedPermissionTargetIds, onRequestPermission }) {
+function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendarDate, setCalendarDate, closingDay, shiftAssignments, shiftRequests, holidayDates, holidayWeekdays, isMonthConfirmed, calendarViewPermissionEnabled, isMember, permissionTargets, submittedPermissionTargetIds, onRequestPermission }) {
   const [selectedPermissionTargetId, setSelectedPermissionTargetId] = useState("");
   const selectedPermissionIsSubmitted = submittedPermissionTargetIds.includes(Number(selectedPermissionTargetId));
-  const monthKey = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}`;
-  const monthStatus = getMonthStatus({ monthKey, isConfirmed: isMonthConfirmed });
-  const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  const getFirstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-
-  const daysInMonth = getDaysInMonth(calendarDate);
-  const firstDay = getFirstDayOfMonth(calendarDate);
-  const monthStr = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}`;
+  const period = getShiftPeriod(calendarDate, closingDay);
+  const monthStatus = getMonthStatus({ monthKey: period.key, isConfirmed: isMonthConfirmed });
+  const periodDates = getDatesInShiftPeriod(calendarDate, closingDay);
 
   const prevMonth = () => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1));
   const nextMonth = () => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1));
@@ -46,9 +42,7 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
 
   const isHoliday = (dateStr) => isHolidayDate(dateStr, holidayDates, holidayWeekdays);
 
-  const days = [];
-  for (let i = 0; i < firstDay; i++) days.push(null);
-  for (let i = 1; i <= daysInMonth; i++) days.push(i);
+  const days = [...Array(period.startDate.getDay()).fill(null), ...periodDates];
 
   return (
     <div className="card">
@@ -69,7 +63,7 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
         </button>
         <div style={{ textAlign: "center" }}>
           <h2 style={{ margin: 0 }}>
-            {calendarDate.getFullYear()}年 {calendarDate.getMonth() + 1}月
+            {toLocalDateString(period.startDate)} 〜 {toLocalDateString(period.endDate)}
           </h2>
           <div style={{ marginTop: "0.2rem", color: monthStatus.accentColor, fontSize: "0.9rem", fontWeight: 600 }}>
             {monthStatus.label}
@@ -115,9 +109,7 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
           {Array.from({ length: Math.ceil(days.length / 7) }).map((_, weekIdx) => (
             <tr key={weekIdx}>
               {days.slice(weekIdx * 7, (weekIdx + 1) * 7).map((day, dayIdx) => {
-                const dateStr = day
-                  ? `${monthStr}-${String(day).padStart(2, "0")}`
-                  : null;
+                const dateStr = day ? toLocalDateString(day) : null;
                 const shift = dateStr ? getShiftForDate(dateStr) : null;
                 const request = dateStr ? getRequestForDate(dateStr) : null;
 
@@ -134,7 +126,7 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
                   >
                     {day && (
                       <>
-                        <strong>{day}</strong>
+                        <strong>{day.getDate()}</strong>
                         {dateStr && isHoliday(dateStr) && (
                           <div style={{ marginTop: "0.25rem", fontSize: "0.8rem", color: "#b45309", fontWeight: 600 }}>
                             休業日
@@ -371,6 +363,7 @@ export default function MemberPage() {
   const [loading, setLoading] = useState(false);
   const [holidayDates, setHolidayDates] = useState([]);
   const [holidayWeekdays, setHolidayWeekdays] = useState([]);
+  const [closingDay, setClosingDay] = useState(31);
   const [isCurrentMonthConfirmed, setIsCurrentMonthConfirmed] = useState(false);
   const [isSelectedDateConfirmed, setIsSelectedDateConfirmed] = useState(false);
   const [roleLabelMap, setRoleLabelMap] = useState({ ...DEFAULT_ROLE_LABELS });
@@ -393,7 +386,7 @@ export default function MemberPage() {
 
   useEffect(() => {
     loadCurrentMonthConfirmationStatus(calendarDate);
-  }, [calendarDate]);
+  }, [calendarDate, closingDay]);
 
   useEffect(() => {
     if (auth?.staffId && calendarViewPermissionEnabled) {
@@ -429,16 +422,14 @@ export default function MemberPage() {
 
   useEffect(() => {
     if (selectedStaffId) {
-      const monthStart = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}-01`;
-      const monthEnd = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0);
-      const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
-      loadShiftAssignments(monthStart, monthEndStr);
-      loadShiftRequests(monthStart, monthEndStr);
+      const period = getShiftPeriod(calendarDate, closingDay);
+      loadShiftAssignments(toLocalDateString(period.startDate), toLocalDateString(period.endDate));
+      loadShiftRequests(toLocalDateString(period.startDate), toLocalDateString(period.endDate));
     } else {
       setShiftAssignments([]);
       setShiftRequests([]);
     }
-  }, [selectedStaffId, calendarDate]);
+  }, [selectedStaffId, calendarDate, closingDay]);
 
   useEffect(() => {
     if (selectedStaffId) {
@@ -460,14 +451,13 @@ export default function MemberPage() {
       return;
     }
 
-    const [year, month] = workDate.split("-").map(Number);
-    if (!year || !month) {
+    if (!workDate) {
       setIsSelectedDateConfirmed(false);
       return;
     }
 
-    loadConfirmationStatusForDate(year, month);
-  }, [workDate]);
+    loadConfirmationStatusForDate(workDate);
+  }, [workDate, closingDay]);
 
   // Fetch staff visible to the logged-in user, hiding ungrouped MASTER staff from shift screens.
   async function loadStaffs() {
@@ -559,8 +549,10 @@ export default function MemberPage() {
       const holidayWeekdaySetting = Array.isArray(settings) ? settings.find((item) => item.settingKey === "holidayWeekdays") : null;
       const rawValue = holidaySetting?.settingValueText || "";
       const rawWeekdays = holidayWeekdaySetting?.settingValueText || "";
+      const closingDaySetting = Array.isArray(settings) ? settings.find((item) => item.settingKey === "closingDay") : null;
       setHolidayDates(parseHolidayDates(rawValue));
       setHolidayWeekdays(parseHolidayWeekdays(rawWeekdays));
+      setClosingDay(normalizeClosingDay(closingDaySetting?.settingValueText));
     } catch (e) {
       setHolidayDates([]);
       setHolidayWeekdays([]);
@@ -598,9 +590,7 @@ export default function MemberPage() {
   // Check whether the displayed calendar month has been confirmed.
   async function loadCurrentMonthConfirmationStatus(date) {
     try {
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
-      const res = await fetchWithAuth(`/api/system-settings/confirmedShiftMonths/status?year=${year}&month=${month}`);
+      const res = await fetchWithAuth(`/api/system-settings/shift-periods/status?date=${toLocalDateString(date)}`);
       if (!res.ok) {
         setIsCurrentMonthConfirmed(false);
         return;
@@ -613,9 +603,9 @@ export default function MemberPage() {
   }
 
   // Check whether the given year/month has been confirmed (used for the request form's date).
-  async function loadConfirmationStatusForDate(year, month) {
+  async function loadConfirmationStatusForDate(date) {
     try {
-      const res = await fetchWithAuth(`/api/system-settings/confirmedShiftMonths/status?year=${year}&month=${month}`);
+      const res = await fetchWithAuth(`/api/system-settings/shift-periods/status?date=${date}`);
       if (!res.ok) {
         setIsSelectedDateConfirmed(false);
         return;
@@ -806,10 +796,8 @@ export default function MemberPage() {
       showMessage("シフト申請を登録しました。", "success");
       setWorkDate(today);
       setShiftTypeId("");
-      const monthStart = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}-01`;
-      const monthEnd = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0);
-      const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
-      await loadShiftRequests(monthStart, monthEndStr);
+      const period = getShiftPeriod(calendarDate, closingDay);
+      await loadShiftRequests(toLocalDateString(period.startDate), toLocalDateString(period.endDate));
       await loadSubmittedShiftRequests();
       setCurrentView("calendar");
     } catch (e) {
@@ -832,10 +820,8 @@ export default function MemberPage() {
         throw new Error(err || "申請の提出に失敗しました。");
       }
       showMessage("申請を提出しました。", "success");
-      const monthStart = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}-01`;
-      const monthEnd = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0);
-      const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
-      await loadShiftRequests(monthStart, monthEndStr);
+      const period = getShiftPeriod(calendarDate, closingDay);
+      await loadShiftRequests(toLocalDateString(period.startDate), toLocalDateString(period.endDate));
       await loadSubmittedShiftRequests();
     } catch (e) {
       showMessage(e.message, "error");
@@ -855,10 +841,8 @@ export default function MemberPage() {
         throw new Error(err || "申請の削除に失敗しました。");
       }
       showMessage("申請を削除しました。", "success");
-      const monthStart = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}-01`;
-      const monthEnd = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0);
-      const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
-      await loadShiftRequests(monthStart, monthEndStr);
+      const period = getShiftPeriod(calendarDate, closingDay);
+      await loadShiftRequests(toLocalDateString(period.startDate), toLocalDateString(period.endDate));
       await loadSubmittedShiftRequests();
     } catch (e) {
       showMessage(e.message, "error");
@@ -931,6 +915,7 @@ export default function MemberPage() {
             onSelectStaff={handleStaffSelection}
             calendarDate={calendarDate}
             setCalendarDate={setCalendarDate}
+            closingDay={closingDay}
             shiftAssignments={shiftAssignments}
             shiftRequests={shiftRequests}
             holidayDates={holidayDates}

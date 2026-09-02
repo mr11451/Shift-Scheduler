@@ -19,6 +19,7 @@ const SETTING_KEYS = {
   holidayDates: "holidayDates",
   holidayWeekdays: "holidayWeekdays",
   roleLabels: "roleLabels",
+  closingDay: "closingDay",
 };
 
 // Admin tab (MASTER-only) for global system settings: calendar view permission, login
@@ -32,6 +33,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
     holidayDates: "",
     holidayWeekdays: [],
     roleLabels: { ...DEFAULT_ROLE_LABELS },
+    closingDay: 31,
   });
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
@@ -83,6 +85,7 @@ export default function AdminSystemSettingTab({ onCancel }) {
           parseHolidayWeekdays(settingMap.get(SETTING_KEYS.holidayWeekdays)?.settingValueText || ""),
         roleLabels:
           parseRoleLabels(settingMap.get(SETTING_KEYS.roleLabels)?.settingValueText || ""),
+        closingDay: Number(settingMap.get(SETTING_KEYS.closingDay)?.settingValueText || 31),
       });
     } catch (e) {
       setMessage(e.message);
@@ -196,6 +199,12 @@ export default function AdminSystemSettingTab({ onCancel }) {
         ),
         authFetchNoRedirect(
           `/api/system-settings/${SETTING_KEYS.roleLabels}/text?value=${encodeURIComponent(JSON.stringify(settings.roleLabels))}`,
+          {
+            method: "PUT",
+          }
+        ),
+        authFetchNoRedirect(
+          `/api/system-settings/${SETTING_KEYS.closingDay}/text?value=${encodeURIComponent(settings.closingDay)}`,
           {
             method: "PUT",
           }
@@ -388,6 +397,26 @@ export default function AdminSystemSettingTab({ onCancel }) {
             <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.35rem" }}>
               チェックした曜日は毎週の休業日として扱われます。保存時に DB へ登録されます。
             </div>
+          </div>
+        </div>
+
+        <div style={{ borderBottom: "1px solid var(--line)", paddingBottom: "1.5rem" }}>
+          <h3 style={{ marginTop: 0, marginBottom: "1rem" }}>シフト締め日</h3>
+          <label style={{ display: "grid", gap: "0.35rem", maxWidth: "14rem" }}>
+            <span style={{ fontWeight: 600 }}>毎月の締め日</span>
+            <input
+              type="number"
+              name="closingDay"
+              min="1"
+              max="31"
+              value={settings.closingDay}
+              onChange={handleChange}
+              required
+              style={{ padding: "0.65rem", border: "1px solid var(--line)", borderRadius: "4px" }}
+            />
+          </label>
+          <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.5rem" }}>
+            例: 25日締めの場合、8月26日から9月25日までを1つのシフト期間として扱います。月末が指定日より短い場合は月末日を締め日として扱います。
           </div>
         </div>
 

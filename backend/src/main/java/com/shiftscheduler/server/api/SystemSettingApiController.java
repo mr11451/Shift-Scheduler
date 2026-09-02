@@ -2,6 +2,7 @@ package com.shiftscheduler.server.api;
 
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -68,6 +69,25 @@ public class SystemSettingApiController {
   }
 
   /**
+   * GET /api/system-settings/shift-periods/status - Determine whether the period containing a
+   * date is confirmed.
+   */
+  @GetMapping("/shift-periods/status")
+  public ResponseEntity<?> getShiftPeriodStatus(@RequestParam String date) {
+    try {
+      SystemSettingService.ShiftPeriod period = systemSettingService.getShiftPeriod(LocalDate.parse(date));
+      return ResponseEntity.ok(Map.of(
+          "startDate", period.startDate().toString(),
+          "endDate", period.endDate().toString(),
+          "periodKey", period.key(),
+          "closingDay", systemSettingService.getClosingDay(),
+          "confirmed", systemSettingService.isShiftPeriodConfirmed(LocalDate.parse(date))));
+    } catch (Exception e) {
+      return ResponseEntity.badRequest().body("エラー: 日付は yyyy-MM-dd 形式で指定してください。");
+    }
+  }
+
+  /**
    * POST /api/system-settings/confirmedShiftMonths/confirm - Confirm a month and reconcile
    * submitted shift requests for that month (APPLIED if matching the confirmed assignment,
    * REJECTED otherwise).
@@ -88,6 +108,23 @@ public class SystemSettingApiController {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("エラー: 認証が必要です。");
       }
       systemSettingService.confirmMonth(updaterStaffId, year, month);
+      return ResponseEntity.ok().build();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body("エラー: " + e.getMessage());
+    }
+  }
+
+  /**
+   * POST /api/system-settings/shift-periods/confirm - Confirm the period containing a date.
+   */
+  @PostMapping("/shift-periods/confirm")
+  public ResponseEntity<?> confirmShiftPeriod(@RequestParam String date, HttpServletRequest httpRequest) {
+    try {
+      Long updaterStaffId = getAuthenticatedStaffId(httpRequest);
+      if (updaterStaffId == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("エラー: 認証が必要です。");
+      }
+      systemSettingService.confirmShiftPeriod(updaterStaffId, LocalDate.parse(date));
       return ResponseEntity.ok().build();
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().body("エラー: " + e.getMessage());

@@ -202,21 +202,23 @@ public class ShiftAssignmentService {
 
   @Transactional
   public int clearMonthlyShiftAssignments(Long editorStaffId, int year, int month) {
-    if (month < 1 || month > 12) {
-      throw new IllegalArgumentException("月は1〜12の範囲で指定してください。");
-    }
+    return clearShiftAssignmentsForPeriod(editorStaffId, LocalDate.of(year, month, 1));
+  }
+
+  @Transactional
+  public int clearShiftAssignmentsForPeriod(Long editorStaffId, LocalDate date) {
 
     Staff editor = staffRepository.findById(editorStaffId)
         .orElseThrow(() -> new IllegalArgumentException("編集者スタッフが見つかりません。"));
 
-    boolean confirmedMonth = systemSettingService.isMonthConfirmed(year, month);
-    if (confirmedMonth && !canClearConfirmedMonth(editor, year, month)) {
-      throw new IllegalArgumentException("指定月は確定済みのためクリアできません。");
+    SystemSettingService.ShiftPeriod period = systemSettingService.getShiftPeriod(date);
+    boolean confirmedPeriod = systemSettingService.isShiftPeriodConfirmed(date);
+    if (confirmedPeriod && !canClearConfirmedPeriod(editor, period)) {
+      throw new IllegalArgumentException("指定期間は確定済みのためクリアできません。");
     }
 
-    YearMonth targetMonth = YearMonth.of(year, month);
-    LocalDate startDate = targetMonth.atDay(1);
-    LocalDate endDate = targetMonth.atEndOfMonth();
+    LocalDate startDate = period.startDate();
+    LocalDate endDate = period.endDate();
 
     List<Long> editableStaffIds = staffRepository.findAllByIsActiveTrue().stream()
         .filter(staff -> accessControlService.canEditShift(editor, staff))
@@ -248,8 +250,8 @@ public class ShiftAssignmentService {
       }
     }
 
-    if (confirmedMonth) {
-      systemSettingService.removeConfirmedMonth(editorStaffId, year, month);
+    if (confirmedPeriod) {
+      systemSettingService.removeConfirmedShiftPeriod(editorStaffId, date);
     }
 
     return deletedCount;
@@ -295,15 +297,18 @@ public class ShiftAssignmentService {
 
   @Transactional
   public AutoShiftGenerationResultResponse autoGenerateShiftAssignments(Long editorStaffId, int year, int month) {
-    if (month < 1 || month > 12) {
-      throw new IllegalArgumentException("月は1〜12の範囲で指定してください。");
+    return autoGenerateShiftAssignmentsForPeriod(editorStaffId, LocalDate.of(year, month, 1));
+  }
+
+  @Transactional
+  public AutoShiftGenerationResultResponse autoGenerateShiftAssignmentsForPeriod(Long editorStaffId, LocalDate date) {
+
+    if (systemSettingService.isShiftPeriodConfirmed(date)) {
+      throw new IllegalArgumentException("指定期間は確定済みのため自動生成できません。");
     }
 
-    if (systemSettingService.isMonthConfirmed(year, month)) {
-      throw new IllegalArgumentException("指定月は確定済みのため自動生成できません。");
-    }
-
-    List<AutoGenContext> contexts = buildContexts(editorStaffId, year, month);
+    SystemSettingService.ShiftPeriod period = systemSettingService.getShiftPeriod(date);
+    List<AutoGenContext> contexts = buildContexts(editorStaffId, period.startDate(), period.endDate());
 
     if (contexts.isEmpty()) {
       throw new IllegalArgumentException("自動生成対象のスタッフが存在しません。");
@@ -390,13 +395,11 @@ public class ShiftAssignmentService {
     return response;
   }
 
-  private List<AutoGenContext> buildContexts(Long editorStaffId, int year, int month) {
+  private List<AutoGenContext> buildContexts(Long editorStaffId, LocalDate startDate, LocalDate endDate) {
     Staff editor = staffRepository.findById(editorStaffId)
         .orElseThrow(() -> new IllegalArgumentException("編集者スタッフが見つかりません。"));
 
-    YearMonth targetMonth = YearMonth.of(year, month);
-    LocalDate startDate = targetMonth.atDay(1);
-    LocalDate endDate = targetMonth.atEndOfMonth();
+    YearMonth targetMonth = YearMonth.from(endDate);
 
     String rulesJson = systemSettingService.getSystemSettingTextValue("autoShiftGenerationRules");
 
@@ -1483,21 +1486,19 @@ public class ShiftAssignmentService {
     return accessControlService.isMaster(editor) || accessControlService.isChief(editor);
   }
 
-  private boolean canClearConfirmedMonth(Staff editor, int year, int month) {
+  private boolean canClearConfirmedPeriod(Staff editor, SystemSettingService.ShiftPeriod period) {
     if (!canOverrideConfirmedMonth(editor)) {
       return false;
     }
 
-    YearMonth targetMonth = YearMonth.of(year, month);
-    YearMonth currentMonth = YearMonth.from(LocalDate.now());
-    return targetMonth.isAfter(currentMonth);
+    return period.endDate().isAfter(LocalDate.now());
   }
 
   private boolean isConfirmedMonthAssignment(LocalDate workDate) {
     if (workDate == null) {
       return false;
     }
-    return systemSettingService.isMonthConfirmed(workDate.getYear(), workDate.getMonthValue());
+    return systemSettingService.isShiftPeriodConfirmed(workDate);
   }
 
   private ShiftAssignmentResponse convertToResponse(ShiftAssignment a) {

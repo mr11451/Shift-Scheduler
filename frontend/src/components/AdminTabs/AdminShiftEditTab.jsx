@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useMemo } from "react";
 import { fetchWithAuth } from "../../utils/fetchWithAuth";
 import { AuthContext } from "../../context/AuthContext";
 import { isHolidayDate, parseHolidayDates, parseHolidayWeekdays } from "../../utils/holidayDates";
+import { getShiftPeriod, normalizeClosingDay } from "../../utils/shiftPeriod";
 import "./AdminShiftEditTab.css";
 
 const REQUEST_STATUS_SHORT_LABELS = {
@@ -28,6 +29,7 @@ export default function AdminShiftEditTab() {
   const [shiftRequests, setShiftRequests] = useState({}); // key: staffId-date, value: request
   const [holidayDates, setHolidayDates] = useState([]);
   const [holidayWeekdays, setHolidayWeekdays] = useState([]);
+  const [closingDay, setClosingDay] = useState(31);
   const [requiredCounts, setRequiredCounts] = useState({});
   const [requiredCountsByGroup, setRequiredCountsByGroup] = useState({});
   const [maxConsecutiveWorkdays, setMaxConsecutiveWorkdays] = useState(0);
@@ -54,11 +56,16 @@ export default function AdminShiftEditTab() {
     return `${year}-${month}-${day}`;
   }
 
+  function getDisplayedDate(dayIndex) {
+    const period = getShiftPeriod(currentDate, closingDay);
+    const date = new Date(period.startDate);
+    date.setDate(date.getDate() + dayIndex - 1);
+    return date;
+  }
+
   // Format a year/month/day triple as "YYYY-MM-DD".
   function toLocalDateStringByDay(year, monthIndex, day) {
-    const month = String(monthIndex + 1).padStart(2, "0");
-    const dayString = String(day).padStart(2, "0");
-    return `${year}-${month}-${dayString}`;
+    return toLocalDateString(getDisplayedDate(day));
   }
 
   // Load staff, shift types, assignments, and requests for the current month.
@@ -87,10 +94,9 @@ export default function AdminShiftEditTab() {
         groupStaffs([]);
       }
 
-      const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      const startDate = toLocalDateString(firstDay);
-      const endDate = toLocalDateString(lastDay);
+      const period = getShiftPeriod(currentDate, closingDay);
+      const startDate = toLocalDateString(period.startDate);
+      const endDate = toLocalDateString(period.endDate);
 
       const saRes = await fetchWithAuth(`/api/shift-assignments?startDate=${startDate}&endDate=${endDate}`, {
         redirectOnUnauthorized: false,
@@ -159,7 +165,7 @@ export default function AdminShiftEditTab() {
 
   // 0 (Sunday) - 6 (Saturday) weekday index for a given day-of-month.
   function getWeekday(day) {
-    return new Date(currentDate.getFullYear(), currentDate.getMonth(), day).getDay();
+    return getDisplayedDate(day).getDay();
   }
 
   // Japanese single-character weekday label for a given day-of-month.
@@ -208,8 +214,10 @@ export default function AdminShiftEditTab() {
         : null;
       const rawValue = holidaySetting?.settingValueText || "";
       const rawWeekdays = holidayWeekdaySetting?.settingValueText || "";
+      const closingDaySetting = Array.isArray(settings) ? settings.find((item) => item.settingKey === "closingDay") : null;
       setHolidayDates(parseHolidayDates(rawValue));
       setHolidayWeekdays(parseHolidayWeekdays(rawWeekdays));
+      setClosingDay(normalizeClosingDay(closingDaySetting?.settingValueText));
 
       let parsedGapHours = 0;
       let parsedMaxConsecutiveWorkdays = 0;
@@ -316,10 +324,8 @@ export default function AdminShiftEditTab() {
   // Check whether the displayed month has already been confirmed.
   async function loadCurrentMonthConfirmationStatus(date) {
     try {
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
       const res = await fetchWithAuth(
-        `/api/system-settings/confirmedShiftMonths/status?year=${year}&month=${month}`,
+        `/api/system-settings/shift-periods/status?date=${toLocalDateString(date)}`,
         { redirectOnUnauthorized: false }
       );
 
@@ -892,9 +898,10 @@ export default function AdminShiftEditTab() {
 
   // Confirm the displayed month, locking its assignments against further changes.
   async function handleConfirmCurrentMonth() {
-    const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
+    const period = getShiftPeriod(currentDate, closingDay);
+    const periodKey = `${toLocalDateString(period.startDate)} 〜 ${toLocalDateString(period.endDate)}`;
     if (isCurrentMonthConfirmed) {
-      setMessage(`${monthKey}はすでに確定済みです。`);
+      setMessage(`${periodKey}はすでに確定済みです。`);
       setMessageType("success");
       return;
     }
@@ -904,7 +911,7 @@ export default function AdminShiftEditTab() {
     setMessageType("");
 
     try {
-      const res = await fetchWithAuth(`/api/system-settings/confirmedShiftMonths/confirm?year=${currentDate.getFullYear()}&month=${currentDate.getMonth() + 1}`, {
+      const res = await fetchWithAuth(`/api/system-settings/shift-periods/confirm?date=${toLocalDateString(currentDate)}`, {
         method: "POST",
         redirectOnUnauthorized: false,
       });
@@ -915,7 +922,7 @@ export default function AdminShiftEditTab() {
       }
 
       setIsCurrentMonthConfirmed(true);
-      setMessage(`${monthKey} を確定しました。`);
+      setMessage(`${periodKey} を確定しました。`);
       setMessageType("success");
     } catch (e) {
       setMessage(e.message);
@@ -932,14 +939,12 @@ export default function AdminShiftEditTab() {
       return;
     }
 
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
     setAutoGenerating(true);
     setAutoGenerateDialog(null);
 
     try {
       const res = await fetchWithAuth(
-        `/api/shift-assignments/auto-generate?year=${year}&month=${month}`,
+        `/api/shift-assignments/auto-generate?date=${toLocalDateString(currentDate)}`,
         {
           method: "POST",
           redirectOnUnauthorized: false,
@@ -983,8 +988,7 @@ export default function AdminShiftEditTab() {
 
   // Clear all shift assignments for the displayed month.
   async function handleClearMonthShifts() {
-    const targetYear = currentDate.getFullYear();
-    const targetMonth = currentDate.getMonth() + 1;
+    const period = getShiftPeriod(currentDate, closingDay);
 
     if (isCurrentMonthConfirmed && !(isAdminRole && isFutureMonth)) {
       setMessage("この月は確定済みのためクリアできません。");
@@ -992,21 +996,19 @@ export default function AdminShiftEditTab() {
       return;
     }
 
-    const monthKey = `${targetYear}-${String(targetMonth).padStart(2, "0")}`;
-    const confirmed = window.confirm(`${monthKey} のシフト状態をクリアします。\n申請データは保持されます。よろしいですか？`);
+    const periodKey = `${toLocalDateString(period.startDate)} 〜 ${toLocalDateString(period.endDate)}`;
+    const confirmed = window.confirm(`${periodKey} のシフト状態をクリアします。\n申請データは保持されます。よろしいですか？`);
     if (!confirmed) {
       return;
     }
 
-    const year = targetYear;
-    const month = targetMonth;
     setClearingMonth(true);
     setMessage("");
     setMessageType("");
 
     try {
       const res = await fetchWithAuth(
-        `/api/shift-assignments/month?year=${year}&month=${month}`,
+        `/api/shift-assignments/period?date=${toLocalDateString(currentDate)}`,
         {
           method: "DELETE",
           redirectOnUnauthorized: false,
@@ -1037,13 +1039,10 @@ export default function AdminShiftEditTab() {
     }
   }
 
-  const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
-  const monthLabel = `${currentDate.getFullYear()}年 ${String(currentDate.getMonth() + 1).padStart(2, "0")}月`;
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
-  const isFutureMonth = currentDate.getFullYear() > currentYear || (currentDate.getFullYear() === currentYear && currentDate.getMonth() + 1 > currentMonth);
-  const daysInMonth = getDaysInMonth(currentDate);
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const displayedPeriod = getShiftPeriod(currentDate, closingDay);
+  const monthLabel = `${toLocalDateString(displayedPeriod.startDate)} 〜 ${toLocalDateString(displayedPeriod.endDate)}`;
+  const isFutureMonth = displayedPeriod.endDate > new Date();
+  const days = Array.from({ length: Math.round((displayedPeriod.endDate - displayedPeriod.startDate) / (24 * 60 * 60 * 1000)) + 1 }, (_, index) => index + 1);
 
   if (loading) return <div className="card">読み込み中...</div>;
 
@@ -1254,7 +1253,7 @@ export default function AdminShiftEditTab() {
                   ...getWeekendColumnStyle(day),
                 }}
               >
-                <span className="shift-date-number">{day}</span>
+                <span className="shift-date-number">{getDisplayedDate(day).getDate()}</span>
                 <span className="shift-date-weekday">({getWeekdayLabel(day)})</span>
               </div>
             ))}

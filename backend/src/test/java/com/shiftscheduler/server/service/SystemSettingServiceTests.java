@@ -1,5 +1,6 @@
 package com.shiftscheduler.server.service;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -87,7 +88,35 @@ class SystemSettingServiceTests {
                 () -> systemSettingService.updateSystemSettingText(2L, "holidayWeekdays", "0,6")
         );
 
-        assertTrue(error.getMessage().contains("マスタのみシステム設定を更新できます。"));
+        assertTrue(error.getMessage().contains("マスターのみシステム設定を更新できます。"));
+    }
+
+    @Test
+    void getShiftPeriod_usesConfiguredClosingDayAcrossMonths() {
+        initializeService();
+        when(systemSettingRepository.findBySettingKey("closingDay"))
+                .thenReturn(Optional.of(createTextSetting("closingDay", "25", null)));
+
+        SystemSettingService.ShiftPeriod period = systemSettingService.getShiftPeriod(LocalDate.of(2026, 9, 2));
+
+        assertEquals(LocalDate.of(2026, 8, 26), period.startDate());
+        assertEquals(LocalDate.of(2026, 9, 25), period.endDate());
+        assertEquals("2026-09-25", period.key());
+    }
+
+    @Test
+    void updateSystemSettingText_rejectsClosingDayOutsideTheValidRange() {
+        initializeService();
+        Staff updater = new Staff();
+        updater.setId(1L);
+        when(staffRepository.findById(1L)).thenReturn(Optional.of(updater));
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> systemSettingService.updateSystemSettingText(1L, "closingDay", "32")
+        );
+
+        assertTrue(error.getMessage().contains("締め日は1〜31の範囲"));
     }
 
     private SystemSetting createTextSetting(String settingKey, String value, Staff updater) {

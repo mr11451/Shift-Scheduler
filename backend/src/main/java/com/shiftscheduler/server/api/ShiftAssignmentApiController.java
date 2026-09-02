@@ -93,7 +93,7 @@ public class ShiftAssignmentApiController {
    * Query params: year, month
    */
   @RequireRole(roles = {"CHIEF", "MASTER"})
-  @PostMapping("/auto-generate")
+  @PostMapping(value = "/auto-generate", params = {"year", "month"})
   public ResponseEntity<?> autoGenerateShiftAssignments(
       HttpServletRequest httpRequest,
       @RequestParam int year,
@@ -106,6 +106,23 @@ public class ShiftAssignmentApiController {
       AutoShiftGenerationResultResponse result = shiftAssignmentService.autoGenerateShiftAssignments(editorStaffId, year, month);
       return ResponseEntity.ok(result);
     } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body("エラー: " + e.getMessage());
+    }
+  }
+
+  /** POST /api/shift-assignments/auto-generate?date=yyyy-MM-dd - Generate for a closing-date period. */
+  @RequireRole(roles = {"CHIEF", "MASTER"})
+  @PostMapping(value = "/auto-generate", params = "date")
+  public ResponseEntity<?> autoGenerateShiftAssignmentsForPeriod(
+      HttpServletRequest httpRequest,
+      @RequestParam String date) {
+    try {
+      Long editorStaffId = getAuthenticatedStaffId(httpRequest);
+      if (editorStaffId == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("エラー: 認証が必要です。");
+      }
+      return ResponseEntity.ok(shiftAssignmentService.autoGenerateShiftAssignmentsForPeriod(editorStaffId, LocalDate.parse(date)));
+    } catch (Exception e) {
       return ResponseEntity.badRequest().body("エラー: " + e.getMessage());
     }
   }
@@ -134,6 +151,22 @@ public class ShiftAssignmentApiController {
           "deletedCount", deletedCount,
           "message", "シフト状態をクリアしました。申請データは保持されています。"));
     } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body("エラー: " + e.getMessage());
+    }
+  }
+
+  /** DELETE /api/shift-assignments/period?date=yyyy-MM-dd - Clear assignments for a closing-date period. */
+  @RequireRole(roles = {"CHIEF", "MASTER"})
+  @DeleteMapping("/period")
+  public ResponseEntity<?> clearShiftAssignmentsForPeriod(HttpServletRequest httpRequest, @RequestParam String date) {
+    try {
+      Long editorStaffId = getAuthenticatedStaffId(httpRequest);
+      if (editorStaffId == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("エラー: 認証が必要です。");
+      }
+      int deletedCount = shiftAssignmentService.clearShiftAssignmentsForPeriod(editorStaffId, LocalDate.parse(date));
+      return ResponseEntity.ok(Map.of("deletedCount", deletedCount));
+    } catch (Exception e) {
       return ResponseEntity.badRequest().body("エラー: " + e.getMessage());
     }
   }

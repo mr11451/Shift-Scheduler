@@ -1,15 +1,16 @@
 # シフト自動生成ルール仕様
 
-最終更新: 2026-08-13
+最終更新: 2026-09-02
 
 このドキュメントは、シフト自動生成で使用する `autoShiftGenerationRules` の仕様と、実際の判定順序をまとめたものです。
 実装の基準は `backend/src/main/java/com/shiftscheduler/server/service/ShiftAssignmentService.java` です。
 
 ## 対象API
 
-- `POST /api/shift-assignments/auto-generate?year=YYYY&month=M`
+- `POST /api/shift-assignments/auto-generate?date=YYYY-MM-DD`
 - 権限: `CHIEF` / `MASTER`
-- 指定月が確定済みの場合はエラーになります
+- `date` を含む、設定済みの締め日で区切られた期間を自動生成対象とします
+- 指定期間が確定済みの場合はエラーになります
 
 ## 設定キー
 
@@ -61,7 +62,7 @@
 | `minimumRestDays` | number | 最低休日日数 | 充足不可時に緩和される場合あり |
 | `minimumShiftGapHours` | number | 最短連続シフト間隔（時間） | 充足不可時に緩和される場合あり |
 | `desiredShiftMode` | string | `REQUIRED` / `PRIORITY` / `IGNORE` | `REQUIRED` のみ先行割当で必須扱い |
-| `existingShiftHandling` | string | `ONLY_EMPTY` / `OVERWRITE` | `OVERWRITE` は対象月の編集可能スタッフ分を先に削除 |
+| `existingShiftHandling` | string | `ONLY_EMPTY` / `OVERWRITE` | `OVERWRITE` は対象期間の編集可能スタッフ分を先に削除 |
 
 ## スタッフ側の関連データ
 
@@ -84,8 +85,8 @@
 ## 自動生成の処理フロー
 
 1. 前提チェック
-- 月の範囲チェック（1-12）
-- 月確定チェック
+- 日付形式チェック
+- 締め期間の確定チェック
 - 編集可能スタッフ抽出
 - スタッフをグループ単位に分割
 - 有効な勤務シフト種類取得
@@ -93,11 +94,11 @@
 2. 初期状態ロード（グループごと）
 - 既存割当
 - スタッフ別勤務日集合
-- 月次勤務回数
+- 期間内勤務回数
 - 日次シフト人数
 
 3. 既存シフトの扱い（グループごと）
-- `existingShiftHandling=OVERWRITE` の場合、対象月の既存割当を削除して再読込
+- `existingShiftHandling=OVERWRITE` の場合、対象期間の既存割当を削除して再読込
 
 4. 申請の先行割当（`desiredShiftMode=REQUIRED` のときのみ、グループごと）
 - 申請シフトを先に埋める

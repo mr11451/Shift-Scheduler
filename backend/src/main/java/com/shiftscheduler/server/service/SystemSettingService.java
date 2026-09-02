@@ -1,5 +1,6 @@
 package com.shiftscheduler.server.service;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -24,6 +25,8 @@ import com.shiftscheduler.server.repository.SystemSettingRepository;
 public class SystemSettingService {
 
   private static final String AUTO_SHIFT_GENERATION_RULES_KEY = "autoShiftGenerationRules";
+  private static final String CLOSING_DAY_KEY = "closingDay";
+  private static final String CONFIRMED_SHIFT_PERIODS_KEY = "confirmedShiftPeriods";
 
   @Autowired
   private SystemSettingRepository systemSettingRepository;
@@ -78,6 +81,17 @@ public class SystemSettingService {
         .orElseThrow(() -> new IllegalArgumentException("更新者スタッフが見つかりません。"));
 
     String valueToSave = value;
+    if (CLOSING_DAY_KEY.equals(settingKey)) {
+      try {
+        int closingDay = Integer.parseInt(value == null ? "" : value.trim());
+        if (closingDay < 1 || closingDay > 31) {
+          throw new NumberFormatException();
+        }
+        valueToSave = String.valueOf(closingDay);
+      } catch (NumberFormatException e) {
+        throw new IllegalArgumentException("締め日は1〜31の範囲で指定してください。");
+      }
+    }
 
     if (!accessControlService.isMaster(updater)) {
       // CHIEF may only update their own group's auto-generation rule; every other setting stays MASTER-only.
@@ -175,6 +189,50 @@ public class SystemSettingService {
   }
 
   /**
+   * Return the configured closing day. The last day of each month is used when the setting has
+   * not been created yet, preserving the existing calendar-month behavior.
+   */
+  public int getClosingDay() {
+    String value = getSystemSettingTextValue(CLOSING_DAY_KEY);
+    try {
+      int closingDay = Integer.parseInt(value == null ? "31" : value.trim());
+      return closingDay >= 1 && closingDay <= 31 ? closingDay : 31;
+    } catch (NumberFormatException e) {
+      return 31;
+    }
+  }
+
+  /**
+   * Resolve the shift period that contains a date. A period ends on the configured closing day,
+   * or the last valid day when a month is shorter than that day.
+   */
+  public ShiftPeriod getShiftPeriod(LocalDate date) {
+    LocalDate effectiveDate = date == null ? LocalDate.now() : date;
+    int closingDay = getClosingDay();
+    LocalDate thisMonthClosingDate = effectiveDate.withDayOfMonth(
+        Math.min(closingDay, effectiveDate.lengthOfMonth()));
+    LocalDate endDate = effectiveDate.isAfter(thisMonthClosingDate)
+        ? effectiveDate.plusMonths(1).withDayOfMonth(Math.min(closingDay, effectiveDate.plusMonths(1).lengthOfMonth()))
+        : thisMonthClosingDate;
+    LocalDate previousMonth = endDate.minusMonths(1);
+    LocalDate startDate = previousMonth.withDayOfMonth(Math.min(closingDay, previousMonth.lengthOfMonth())).plusDays(1);
+    return new ShiftPeriod(startDate, endDate);
+  }
+
+  /**
+   * Check whether the period containing the date has been confirmed.
+   */
+  public boolean isShiftPeriodConfirmed(LocalDate date) {
+    ShiftPeriod period = getShiftPeriod(date);
+    if (parseConfirmedPeriods(getSystemSettingTextValue(CONFIRMED_SHIFT_PERIODS_KEY)).contains(period.key())) {
+      return true;
+    }
+
+    // Existing installations stored month keys. They remain valid while the closing day is month-end.
+    return getClosingDay() == 31 && isMonthConfirmed(period.endDate().getYear(), period.endDate().getMonthValue());
+  }
+
+  /**
    * Check whether the given "YYYY-MM" month key is in the confirmed months list.
    */
   public boolean isMonthConfirmed(String monthKey) {
@@ -225,12 +283,45 @@ public class SystemSettingService {
     systemSettingRepository.save(setting);
   }
 
+  /** Remove a period confirmation; MASTER/CHIEF only. */
+  @Transactional
+  public void removeConfirmedShiftPeriod(Long updaterStaffId, LocalDate date) {
+    Staff updater = staffRepository.findById(updaterStaffId)
+        .orElseThrow(() -> new IllegalArgumentException("更新者スタッフが見つかりません。"));
+    if (!accessControlService.isMaster(updater) && !accessControlService.isChief(updater)) {
+      throw new IllegalArgumentException("管理者のみ確認状態を変更できます。");
+    }
+
+    String periodKey = getShiftPeriod(date).key();
+    List<String> periods = parseConfirmedPeriods(getSystemSettingTextValue(CONFIRMED_SHIFT_PERIODS_KEY)).stream()
+        .filter(existing -> !periodKey.equals(existing))
+        .collect(Collectors.toList());
+    SystemSetting setting = systemSettingRepository.findBySettingKey(CONFIRMED_SHIFT_PERIODS_KEY)
+        .orElseGet(() -> {
+          SystemSetting created = new SystemSetting();
+          created.setSettingKey(CONFIRMED_SHIFT_PERIODS_KEY);
+          return created;
+        });
+    setting.setSettingValueText(String.join(",", periods));
+    setting.setUpdatedBy(updater);
+    setting.setUpdatedAt(OffsetDateTime.now());
+    systemSettingRepository.save(setting);
+  }
+
   /**
    * Confirm a month, locking its assignments and reconciling submitted shift requests
    * against the confirmed schedule; MASTER/CHIEF only.
    */
   @Transactional
   public void confirmMonth(Long updaterStaffId, int year, int month) {
+    confirmShiftPeriod(updaterStaffId, LocalDate.of(year, month, 1));
+  }
+
+  /**
+   * Confirm the period containing the given date and reconcile submitted shift requests in it.
+   */
+  @Transactional
+  public void confirmShiftPeriod(Long updaterStaffId, LocalDate date) {
     Staff updater = staffRepository.findById(updaterStaffId)
         .orElseThrow(() -> new IllegalArgumentException("更新者スタッフが見つかりません。"));
 
@@ -238,26 +329,25 @@ public class SystemSettingService {
       throw new IllegalArgumentException("管理者のみ確定操作を行えます。");
     }
 
-    String monthKey = String.format("%04d-%02d", year, month);
-    List<String> confirmedMonths = new ArrayList<>(new LinkedHashSet<>(parseConfirmedMonths(getSystemSettingTextValue("confirmedShiftMonths"))));
-    if (!confirmedMonths.contains(monthKey)) {
-      confirmedMonths.add(monthKey);
+    ShiftPeriod period = getShiftPeriod(date);
+    List<String> confirmedPeriods = new ArrayList<>(new LinkedHashSet<>(parseConfirmedPeriods(getSystemSettingTextValue(CONFIRMED_SHIFT_PERIODS_KEY))));
+    if (!confirmedPeriods.contains(period.key())) {
+      confirmedPeriods.add(period.key());
     }
 
-    SystemSetting setting = systemSettingRepository.findBySettingKey("confirmedShiftMonths")
+    SystemSetting setting = systemSettingRepository.findBySettingKey(CONFIRMED_SHIFT_PERIODS_KEY)
         .orElseGet(() -> {
           SystemSetting created = new SystemSetting();
-          created.setSettingKey("confirmedShiftMonths");
+          created.setSettingKey(CONFIRMED_SHIFT_PERIODS_KEY);
           return created;
         });
 
-    setting.setSettingValueText(String.join(",", confirmedMonths));
+    setting.setSettingValueText(String.join(",", confirmedPeriods));
     setting.setUpdatedBy(updater);
     setting.setUpdatedAt(OffsetDateTime.now());
     systemSettingRepository.save(setting);
 
-    YearMonth yearMonth = YearMonth.of(year, month);
-    shiftRequestService.reconcileShiftRequestsForMonth(yearMonth.atDay(1), yearMonth.atEndOfMonth());
+    shiftRequestService.reconcileShiftRequestsForMonth(period.startDate(), period.endDate());
   }
 
   /**
@@ -319,6 +409,24 @@ public class SystemSettingService {
         .map(value -> value.replaceAll("\\s+", ""))
         .filter(value -> value.matches("\\d{4}-\\d{2}"))
         .collect(Collectors.toList());
+  }
+
+  private List<String> parseConfirmedPeriods(String rawValue) {
+    if (rawValue == null || rawValue.isBlank()) {
+      return List.of();
+    }
+
+    return List.of(rawValue.split("[\\n,]+"))
+        .stream()
+        .map(String::trim)
+        .filter(value -> value.matches("\\d{4}-\\d{2}-\\d{2}"))
+        .collect(Collectors.toList());
+  }
+
+  public record ShiftPeriod(LocalDate startDate, LocalDate endDate) {
+    public String key() {
+      return endDate.toString();
+    }
   }
 
   /**

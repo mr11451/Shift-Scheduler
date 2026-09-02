@@ -1130,6 +1130,27 @@ Manage system-wide configuration settings.
 | `holidayWeekdays` | Text | Comma-separated weekday numbers treated as holidays (`0` for Sunday through `6` for Saturday). |
 | `roleLabels` | Text | JSON object that maps role IDs to their display labels. |
 | `autoShiftGenerationRules` | Text | JSON configuration for automatic shift generation. See `auto_shift_generation_rules.md`. |
+| `closingDay` | Text | Day of the month that ends a shift period (`1` through `31`). `31` means the end of each month. |
+| `confirmedShiftPeriods` | Text | Internally managed, comma-separated period-end dates (`YYYY-MM-DD`) for confirmed shift periods. |
+
+### Shift Period Status
+
+**Request**
+```
+GET /system-settings/shift-periods/status?date=2026-09-02
+```
+
+Returns the closing-date period containing `date`, including `startDate`, `endDate`, `closingDay`, and `confirmed`.
+
+### Confirm Shift Period
+
+**Request**
+```
+POST /system-settings/shift-periods/confirm?date=2026-09-02
+Authorization: Bearer <JWT>
+```
+
+Confirms the closing-date period containing `date` and reconciles its submitted shift requests. `CHIEF` and `MASTER` can use this endpoint.
 
 ### List All Settings
 
