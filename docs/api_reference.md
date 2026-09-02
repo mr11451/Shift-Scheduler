@@ -433,6 +433,11 @@ GET /shift-types
 GET /shift-types/active
 ```
 
+The following request is equivalent and is used by the frontend when it loads selectable shift types:
+```
+GET /shift-types?active=true
+```
+
 **Response** (200 OK)
 
 ### Get Shift Type by ID
@@ -741,6 +746,8 @@ GET /shift-requests/group/{groupId}
 **Response** (200 OK)
 
 ### Get Unreflected Shift Requests
+
+Returns only requests in `SUBMITTED` status within the specified date range. "Unreflected" means a submitted request that has not yet been reconciled when its shift month is confirmed; after reconciliation, it becomes `APPLIED` or `REJECTED`.
 
 **Request**
 ```
@@ -1112,6 +1119,18 @@ Manage system-wide configuration settings.
 
 **Authorization**: MASTER role required for all write operations
 
+### Supported Setting Keys
+
+| Setting key | Value type | Purpose |
+| --- | --- | --- |
+| `calendarViewPermissionEnabled` | Boolean | Enables calendar-view permission requests between members in the same group. |
+| `memberLoginNotificationEnabled` | Boolean | Enables member-login notifications. |
+| `memberLoginNotificationBaseUrl` | Text | Base URL used in member-login notification links. |
+| `holidayDates` | Text | Comma- or newline-separated holiday dates. |
+| `holidayWeekdays` | Text | Comma-separated weekday numbers treated as holidays (`0` for Sunday through `6` for Saturday). |
+| `roleLabels` | Text | JSON object that maps role IDs to their display labels. |
+| `autoShiftGenerationRules` | Text | JSON configuration for automatic shift generation. See `auto_shift_generation_rules.md`. |
+
 ### List All Settings
 
 **Request**
@@ -1197,9 +1216,9 @@ Authorization: Bearer <JWT>
 **Response** (200 OK)
 ```json
 {
-  "settingKey": "company_name",
+  "settingKey": "holidayDates",
   "settingValueBoolean": null,
-  "settingValueText": "Company Name Updated",
+  "settingValueText": "2026-01-01,2026-05-06",
   "updatedBy": "STF-00099",
   "updatedAt": "2026-07-26T12:00:00+09:00"
 }
@@ -1248,5 +1267,5 @@ Common validation scenarios:
 
 ---
 
-**Last Updated**: 2026-08-01
+**Last Updated**: 2026-09-02
 **API Version**: 1.0.0
