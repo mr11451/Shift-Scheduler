@@ -1,470 +1,0 @@
-[1mdiff --git a/README.md b/README.md[m
-[1mindex 74a753c..2fb2aae 100644[m
-[1m--- a/README.md[m
-[1m+++ b/README.md[m
-[36m@@ -1,220 +1,245 @@[m
-[31m-# Shift Scheduler[m
-[31m-[m
-[31m-勤務シフトを作成・閲覧できるクライアント/サーバー構成のアプリです。[m
-[31m-[m
-[31m-## 構成[m
-[31m-[m
-[31m-- Backend: Java (Spring Boot) + PostgreSQL[m
-[31m-- Frontend: React + Vite[m
-[31m-[m
-[31m-## 主な機能[m
-[31m-[m
-[31m-- **ユーザー認証** - スタッフコードとパスワードによるログイン[m
-[31m-- **ロールベースアクセス制御** - MEMBER / CHIEF / MASTER の3段階権限[m
-[31m-- シフト登録・編集[m
-[31m-- シフト一覧表示[m
-[31m-- PostgreSQL への永続化[m
-[31m-[m
-[31m-## 管理者ページ[m
-[31m-[m
-[31m-- URL: `/admin`[m
-[31m-- 利用可能権限: `CHIEF` / `MASTER`[m
-[31m-- 画面内タブ:[m
-[31m-  - スタッフ管理[m
-[31m-  - 資格管理[m
-[31m-  - シフト種類管理[m
-[31m-  - システム設定[m
-[31m-- シフト編集画面: `/admin/shifts`[m
-[31m-- 管理者ページから会員ページへ戻る場合は `/member` を使用します[m
-[31m-[m
-[31m-## WSL実行ルール（必須）[m
-[31m-[m
-[31m-このプロジェクトの開発・ビルド・テスト・起動は、すべて WSL ターミナル内で実行してください。[m
-[31m-Windows の PowerShell / cmd での実行は規定違反とし、原則として使用しないでください。[m
-[31m-[m
-[31m-開始前に次の確認コマンドを実行し、WSL 環境であることを必ず確認します。[m
-[31m-[m
-[31m-```bash[m
-[31m-uname -a[m
-[31m-cat /proc/version[m
-[31m-echo "$SHELL"[m
-[31m-pwd[m
-[31m-```[m
-[31m-[m
-[31m-確認ポイント:[m
-[31m-[m
-[31m-- `uname -a` または `cat /proc/version` に `microsoft` / `WSL` が含まれる[m
-[31m-- `SHELL` が `/bin/bash` または `/bin/zsh`[m
-[31m-- 作業ディレクトリが `/mnt/...` 配下（例: `/mnt/c/Users/.../Shift-Scheduler`）[m
-[31m-[m
-[31m-上記のいずれかを満たさない場合は、WSL を開いてから再実行してください。[m
-[31m-[m
-[31m-### 実行規約[m
-[31m-[m
-[31m-- バックエンドの Maven コマンドは必ず WSL から実行する[m
-[31m-- Docker / Compose のコマンドも必ず WSL から実行する[m
-[31m-- VS Code のタスクやデバッグ起動も、WSL 側のコマンドを使う[m
-[31m-- 変更確認やテスト実行も、Windows 側のシェルではなく WSL で行う[m
-[31m-[m
-[31m-### Docker も WSL から実行する[m
-[31m-[m
-[31m-開発・検証時の Docker 実行は、Windows の PowerShell / cmd ではなく、必ず WSL の Ubuntu ターミナルから行います。[m
-[31m-[m
-[31m-```bash[m
-[31m-cd /mnt/c/Users/kiiji/source/repos/Shift-Scheduler[m
-[31m-docker compose up -d[m
-[31m-docker compose ps[m
-[31m-docker compose logs -f[m
-[31m-```[m
-[31m-[m
-[31m-> 以後の起動・停止・ログ確認も、WSL 側の `docker compose` コマンドで行います。[m
-[31m-[m
-[31m-## VS Code で WSL 上のバックエンドをデバッグする[m
-[31m-[m
-[31m-VS Code から WSL 上の Spring Boot アプリをデバッグする場合は、以下の手順で実行します。[m
-[31m-[m
-[31m-### 1. WSL でバックエンドを起動する[m
-[31m-[m
-[31m-```bash[m
-[31m-cd /mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend[m
-[31m-./mvnw spring-boot:run \[m
-[31m-  -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005" \[m
-[31m-  -Dspring-boot.run.arguments="--spring.profiles.active=dev"[m
-[31m-```[m
-[31m-[m
-[31m-### 2. VS Code のデバッガから接続する[m
-[31m-[m
-[31m-- VS Code の「Run and Debug」を開きます[m
-[31m-- 「Backend (WSL, Spring Boot)」を選択して開始します[m
-[31m-- これにより、[.vscode/launch.json](.vscode/launch.json) の構成でデバッグ接続されます[m
-[31m-[m
-[31m-### 3. タスクから起動する方法[m
-[31m-[m
-[31m-- VS Code の「Terminal」→「Run Task」から「backend:run-wsl」を選択します[m
-[31m-- これにより、[.vscode/tasks.json](.vscode/tasks.json) で定義した WSL 起動コマンドが実行されます[m
-[31m-[m
-[31m-### 4. デバッグ時のポイント[m
-[31m-[m
-[31m-- ブレークポイントは Java ソース上に設定します[m
-[31m-- API リクエストを送信すると、デバッガが停止します[m
-[31m-- 接続先ポートは `5005` を使用します[m
-[31m-[m
-[31m-> WSL 外の PowerShell / cmd からではなく、必ず WSL ターミナル上で起動してください。[m
-[31m-[m
-[31m-## 最短起動（Docker）[m
-[31m-[m
-[31m-1. 起動[m
-[31m-[m
-[31m-```bash[m
-[31m-docker compose up --build[m
-[31m-```[m
-[31m-[m
-[31m-2. アクセス[m
-[31m-[m
-[31m-- http://127.0.0.1:8000[m
-[31m-- ログイン画面が表示されます[m
-[31m-- テストパスワードを使用してログインしてください（例: staffCode=`STF-00001`, password=`test_stf-00001`）[m
-[31m-[m
-[31m-3. 停止[m
-[31m-[m
-[31m-```bash[m
-[31m-docker compose down[m
-[31m-```[m
-[31m-[m
-[31m-補足: PostgreSQL データは `postgres_data` ボリュームに保存されます。[m
-[31m-[m
-[31m-## ローカル起動（Dockerなし）[m
-[31m-[m
-[31m-1. PostgreSQL を起動して環境変数を設定[m
-[31m-[m
-[31m-```bash[m
-[31m-export DB_HOST=localhost[m
-[31m-export DB_PORT=5432[m
-[31m-export DB_NAME=shift_scheduler[m
-[31m-export DB_USER=shift_user[m
-[31m-export DB_PASSWORD=shift_password[m
-[31m-```[m
-[31m-[m
-[31m-2. React をビルド[m
-[31m-[m
-[31m-```bash[m
-[31m-cd frontend[m
-[31m-npm install[m
-[31m-npm run build[m
-[31m-cd ..[m
-[31m-```[m
-[31m-[m
-[31m-3. Java サーバー起動[m
-[31m-[m
-[31m-```bash[m
-[31m-cd backend[m
-[31m-./mvnw spring-boot:run[m
-[31m-```[m
-[31m-[m
-[31m-4. アクセス[m
-[31m-[m
-[31m-- http://127.0.0.1:8000[m
-[31m-- ログイン画面が表示されます[m
-[31m-- テストパスワードを使用してログインしてください（例: staffCode=`STF-00001`, password=`test_stf-00001`）[m
-[31m-[m
-[31m-## フロント開発モード[m
-[31m-[m
-[31m-```bash[m
-[31m-cd frontend[m
-[31m-npm install[m
-[31m-npm run dev[m
-[31m-```[m
-[31m-[m
-[31m-- 開発サーバー: http://127.0.0.1:5173[m
-[31m-- `/api` は http://127.0.0.1:8000 にプロキシされます[m
-[31m-[m
-[31m-## API[m
-[31m-[m
-[31m-### 認証エンドポイント[m
-[31m-- `POST /api/login` - ログイン (staffCode, password を入力)[m
-[31m-  - レスポンス: `{ token, staffId, staffCode, staffName, roleLevel }`[m
-[31m-[m
-[31m-### 保護されたエンドポイント（認証必須）[m
-[31m-[m
-[31m-**全員がアクセス可能:**[m
-[31m-- `GET /api/staffs` - スタッフ一覧[m
-[31m-- `GET /api/shift-types` - シフト種類一覧[m
-[31m-- `GET /api/shift-assignments` - シフト割り当て一覧（照会）[m
-[31m-[m
-[31m-**CHIEF/MASTER のみ:**[m
-[31m-- `POST /api/shift-assignments` - シフト割り当て作成[m
-[31m-- `PUT /api/shift-assignments/{id}` - シフト割り当て更新[m
-[31m-- `DELETE /api/shift-assignments/{id}` - シフト割り当て削除[m
-[31m-[m
-[31m-**MASTER のみ:**[m
-[31m-- `POST /api/shift-types` - シフト種類作成[m
-[31m-- `PUT /api/shift-types/{id}` - シフト種類更新[m
-[31m-- `DELETE /api/shift-types/{id}` - シフト種類削除[m
-[31m-[m
-[31m-### テストユーザー[m
-[31m-[m
-[31m-アプリケーション起動時に、以下のテストパスワードが自動生成されます：[m
-[31m-- スタッフコード: `STF-00001` 形式[m
-[31m-- パスワード: `test_stf-00001` 形式[m
-[31m-[m
-[31m-例：[m
-[31m-- staffCode: `STF-00001`, password: `test_stf-00001`[m
-[31m-- staffCode: `STF-00002`, password: `test_stf-00002`[m
-[31m-[m
-[31m-## DBマイグレーション[m
-[31m-[m
-[31m-- Flyway を使用しています[m
-[31m-- マイグレーションファイル配置先: `backend/src/main/resources/db/migration`[m
-[31m-- 初期スキーマ: `V1__create_shifts_table.sql`[m
-[31m-- 認証関連: `V11__add_password_to_staffs.sql` (password_hash列追加)[m
-[31m-- 既存DB導入時のため `spring.flyway.baseline-on-migrate=true` を設定済みです[m
-[31m-[m
-[31m-ローカルでサーバー起動時（`mvnw spring-boot:run`）または Docker 起動時に、未適用のマイグレーションが自動適用されます。[m
-[31m-[m
-[31m-## セキュリティ設定[m
-[31m-[m
-[31m-- **JWT トークン** - 24時間有効期限で発行[m
-[31m-- **パスワードハッシング** - SHA-256 + ランダムソルト[m
-[31m-- **認証フィルター** - すべてのリクエストに JWT 検証[m
-[31m-- **ロール認可** - メソッドレベルで @RequireRole アノテーション適用[m
-[31m-- **本番環境では必須** - JWT秘密鍵の変更（JwtTokenUtil.java 参照）[m
-[32m+[m[32m# Shift Scheduler[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m勤務シフトを作成・閲覧できるクライアント/サーバー構成のアプリです。[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## 構成[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- Backend: Java (Spring Boot) + PostgreSQL[m[41m[m
-[32m+[m[32m- Frontend: React + Vite[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## 主な機能[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- **ユーザー認証** - スタッフコードとパスワードによるログイン[m[41m[m
-[32m+[m[32m- **ロールベースアクセス制御** - MEMBER / CHIEF / MASTER の3段階権限[m[41m[m
-[32m+[m[32m- シフト登録・編集[m[41m[m
-[32m+[m[32m- シフト一覧表示[m[41m[m
-[32m+[m[32m- PostgreSQL への永続化[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## 管理者ページ[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- URL: `/admin`[m[41m[m
-[32m+[m[32m- 利用可能権限: `CHIEF` / `MASTER`[m[41m[m
-[32m+[m[32m- 画面内タブ:[m[41m[m
-[32m+[m[32m  - スタッフ管理[m[41m[m
-[32m+[m[32m  - 資格管理[m[41m[m
-[32m+[m[32m  - シフト種類管理[m[41m[m
-[32m+[m[32m  - システム設定[m[41m[m
-[32m+[m[32m- シフト編集画面: `/admin/shifts`[m[41m[m
-[32m+[m[32m- 管理者ページから会員ページへ戻る場合は `/member` を使用します[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### システム設定の休業日 CSV 取込[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m管理者ページの「システム設定」タブでは、休業日設定の `CSV読込` ボタンから休業日一覧を取り込めます。[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- 文字コードは UTF-8 を推奨[m[41m[m
-[32m+[m[32m- 1列 CSV / 複数列 CSV のどちらでも可[m[41m[m
-[32m+[m[32m- ヘッダー行があっても可[m[41m[m
-[32m+[m[32m- CSV 内に含まれる日付文字列を抽出し、休業日入力欄へ反映[m[41m[m
-[32m+[m[32m- 取り込み後は自動保存されないため、画面下部の `保存` ボタンで確定が必要[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m受け付ける日付形式:[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- `YYYY-MM-DD`[m[41m[m
-[32m+[m[32m- `YYYY/MM/DD`[m[41m[m
-[32m+[m[32m- `YYYY年M月D日`[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32mCSV 例:[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m```csv[m[41m[m
-[32m+[m[32mdate,name,notes[m[41m[m
-[32m+[m[32m2026-01-01,元日,closed[m[41m[m
-[32m+[m[32m2026/05/06,振替休日,closed[m[41m[m
-[32m+[m[32m2026年8月13日,夏季休業,closed[m[41m[m
-[32m+[m[32m```[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## WSL実行ルール（必須）[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32mこのプロジェクトの開発・ビルド・テスト・起動は、すべて WSL ターミナル内で実行してください。[m[41m[m
-[32m+[m[32mWindows の PowerShell / cmd での実行は規定違反とし、原則として使用しないでください。[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m開始前に次の確認コマンドを実行し、WSL 環境であることを必ず確認します。[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m```bash[m[41m[m
-[32m+[m[32muname -a[m[41m[m
-[32m+[m[32mcat /proc/version[m[41m[m
-[32m+[m[32mecho "$SHELL"[m[41m[m
-[32m+[m[32mpwd[m[41m[m
-[32m+[m[32m```[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m確認ポイント:[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- `uname -a` または `cat /proc/version` に `microsoft` / `WSL` が含まれる[m[41m[m
-[32m+[m[32m- `SHELL` が `/bin/bash` または `/bin/zsh`[m[41m[m
-[32m+[m[32m- 作業ディレクトリが `/mnt/...` 配下（例: `/mnt/c/Users/.../Shift-Scheduler`）[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m上記のいずれかを満たさない場合は、WSL を開いてから再実行してください。[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### 実行規約[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- バックエンドの Maven コマンドは必ず WSL から実行する[m[41m[m
-[32m+[m[32m- Docker / Compose のコマンドも必ず WSL から実行する[m[41m[m
-[32m+[m[32m- VS Code のタスクやデバッグ起動も、WSL 側のコマンドを使う[m[41m[m
-[32m+[m[32m- 変更確認やテスト実行も、Windows 側のシェルではなく WSL で行う[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### Docker も WSL から実行する[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m開発・検証時の Docker 実行は、Windows の PowerShell / cmd ではなく、必ず WSL の Ubuntu ターミナルから行います。[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m```bash[m[41m[m
-[32m+[m[32mcd /mnt/c/Users/kiiji/source/repos/Shift-Scheduler[m[41m[m
-[32m+[m[32mdocker compose up -d[m[41m[m
-[32m+[m[32mdocker compose ps[m[41m[m
-[32m+[m[32mdocker compose logs -f[m[41m[m
-[32m+[m[32m```[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m> 以後の起動・停止・ログ確認も、WSL 側の `docker compose` コマンドで行います。[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## VS Code で WSL 上のバックエンドをデバッグする[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32mVS Code から WSL 上の Spring Boot アプリをデバッグする場合は、以下の手順で実行します。[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### 1. WSL でバックエンドを起動する[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m```bash[m[41m[m
-[32m+[m[32mcd /mnt/c/Users/kiiji/source/repos/Shift-Scheduler/backend[m[41m[m
-[32m+[m[32m./mvnw spring-boot:run \[m[41m[m
-[32m+[m[32m  -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005" \[m[41m[m
-[32m+[m[32m  -Dspring-boot.run.arguments="--spring.profiles.active=dev"[m[41m[m
-[32m+[m[32m```[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### 2. VS Code のデバッガから接続する[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- VS Code の「Run and Debug」を開きます[m[41m[m
-[32m+[m[32m- 「Backend (WSL, Spring Boot)」を選択して開始します[m[41m[m
-[32m+[m[32m- これにより、[.vscode/launch.json](.vscode/launch.json) の構成でデバッグ接続されます[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### 3. タスクから起動する方法[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- VS Code の「Terminal」→「Run Task」から「backend:run-wsl」を選択します[m[41m[m
-[32m+[m[32m- これにより、[.vscode/tasks.json](.vscode/tasks.json) で定義した WSL 起動コマンドが実行されます[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### 4. デバッグ時のポイント[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- ブレークポイントは Java ソース上に設定します[m[41m[m
-[32m+[m[32m- API リクエストを送信すると、デバッガが停止します[m[41m[m
-[32m+[m[32m- 接続先ポートは `5005` を使用します[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m> WSL 外の PowerShell / cmd からではなく、必ず WSL ターミナル上で起動してください。[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## 最短起動（Docker）[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m1. 起動[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m```bash[m[41m[m
-[32m+[m[32mdocker compose up --build[m[41m[m
-[32m+[m[32m```[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m2. アクセス[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- http://127.0.0.1:8000[m[41m[m
-[32m+[m[32m- ログイン画面が表示されます[m[41m[m
-[32m+[m[32m- テストパスワードを使用してログインしてください（例: staffCode=`STF-00001`, password=`test_stf-00001`）[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m3. 停止[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m```bash[m[41m[m
-[32m+[m[32mdocker compose down[m[41m[m
-[32m+[m[32m```[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m補足: PostgreSQL データは `postgres_data` ボリュームに保存されます。[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## ローカル起動（Dockerなし）[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m1. PostgreSQL を起動して環境変数を設定[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m```bash[m[41m[m
-[32m+[m[32mexport DB_HOST=localhost[m[41m[m
-[32m+[m[32mexport DB_PORT=5432[m[41m[m
-[32m+[m[32mexport DB_NAME=shift_scheduler[m[41m[m
-[32m+[m[32mexport DB_USER=shift_user[m[41m[m
-[32m+[m[32mexport DB_PASSWORD=shift_password[m[41m[m
-[32m+[m[32m```[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m2. React をビルド[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m```bash[m[41m[m
-[32m+[m[32mcd frontend[m[41m[m
-[32m+[m[32mnpm install[m[41m[m
-[32m+[m[32mnpm run build[m[41m[m
-[32m+[m[32mcd ..[m[41m[m
-[32m+[m[32m```[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m3. Java サーバー起動[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m```bash[m[41m[m
-[32m+[m[32mcd backend[m[41m[m
-[32m+[m[32m./mvnw spring-boot:run[m[41m[m
-[32m+[m[32m```[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m4. アクセス[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- http://127.0.0.1:8000[m[41m[m
-[32m+[m[32m- ログイン画面が表示されます[m[41m[m
-[32m+[m[32m- テストパスワードを使用してログインしてください（例: staffCode=`STF-00001`, password=`test_stf-00001`）[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## フロント開発モード[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m```bash[m[41m[m
-[32m+[m[32mcd frontend[m[41m[m
-[32m+[m[32mnpm install[m[41m[m
-[32m+[m[32mnpm run dev[m[41m[m
-[32m+[m[32m```[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- 開発サーバー: http://127.0.0.1:5173[m[41m[m
-[32m+[m[32m- `/api` は http://127.0.0.1:8000 にプロキシされます[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## API[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### 認証エンドポイント[m[41m[m
-[32m+[m[32m- `POST /api/login` - ログイン (staffCode, password を入力)[m[41m[m
-[32m+[m[32m  - レスポンス: `{ token, staffId, staffCode, staffName, roleLevel }`[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### 保護されたエンドポイント（認証必須）[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m**全員がアクセス可能:**[m[41m[m
-[32m+[m[32m- `GET /api/staffs` - スタッフ一覧[m[41m[m
-[32m+[m[32m- `GET /api/shift-types` - シフト種類一覧[m[41m[m
-[32m+[m[32m- `GET /api/shift-assignments` - シフト割り当て一覧（照会）[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m**CHIEF/MASTER のみ:**[m[41m[m
-[32m+[m[32m- `POST /api/shift-assignments` - シフト割り当て作成[m[41m[m
-[32m+[m[32m- `PUT /api/shift-assignments/{id}` - シフト割り当て更新[m[41m[m
-[32m+[m[32m- `DELETE /api/shift-assignments/{id}` - シフト割り当て削除[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m**MASTER のみ:**[m[41m[m
-[32m+[m[32m- `POST /api/shift-types` - シフト種類作成[m[41m[m
-[32m+[m[32m- `PUT /api/shift-types/{id}` - シフト種類更新[m[41m[m
-[32m+[m[32m- `DELETE /api/shift-types/{id}` - シフト種類削除[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### テストユーザー[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32mアプリケーション起動時に、以下のテストパスワードが自動生成されます：[m[41m[m
-[32m+[m[32m- スタッフコード: `STF-00001` 形式[m[41m[m
-[32m+[m[32m- パスワード: `test_stf-00001` 形式[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m例：[m[41m[m
-[32m+[m[32m- staffCode: `STF-00001`, password: `test_stf-00001`[m[41m[m
-[32m+[m[32m- staffCode: `STF-00002`, password: `test_stf-00002`[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## DBマイグレーション[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- Flyway を使用しています[m[41m[m
-[32m+[m[32m- マイグレーションファイル配置先: `backend/src/main/resources/db/migration`[m[41m[m
-[32m+[m[32m- 初期スキーマ: `V1__create_shifts_table.sql`[m[41m[m
-[32m+[m[32m- 認証関連: `V11__add_password_to_staffs.sql` (password_hash列追加)[m[41m[m
-[32m+[m[32m- 既存DB導入時のため `spring.flyway.baseline-on-migrate=true` を設定済みです[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32mローカルでサーバー起動時（`mvnw spring-boot:run`）または Docker 起動時に、未適用のマイグレーションが自動適用されます。[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## セキュリティ設定[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m- **JWT トークン** - 24時間有効期限で発行[m[41m[m
-[32m+[m[32m- **パスワードハッシング** - SHA-256 + ランダムソルト[m[41m[m
-[32m+[m[32m- **認証フィルター** - すべてのリクエストに JWT 検証[m[41m[m
-[32m+[m[32m- **ロール認可** - メソッドレベルで @RequireRole アノテーション適用[m[41m[m
-[32m+[m[32m- **本番環境では必須** - JWT秘密鍵の変更（JwtTokenUtil.java 参照）[m[41m[m
