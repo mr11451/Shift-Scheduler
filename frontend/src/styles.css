@@ -129,6 +129,11 @@ input[type="time"] {
   font-family: inherit;
 }
 
+.member-work-date-input {
+  min-width: 0;
+  max-width: 100%;
+}
+
 button {
   margin-top: 14px;
   border: none;
@@ -174,7 +179,25 @@ table {
 }
 
 .member-calendar-table {
+  width: 100%;
   min-width: 700px;
+}
+
+@media (max-width: 700px) {
+  .shell {
+    padding: 12px;
+  }
+
+  .member-calendar-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .member-calendar-table th,
+  .member-calendar-table td {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 }
 
 .member-message-popup-backdrop {

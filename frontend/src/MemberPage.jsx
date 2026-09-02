@@ -221,6 +221,7 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
       <label htmlFor="workDate">勤務日</label>
       <input
         id="workDate"
+        className="member-work-date-input"
         type="date"
         value={workDate}
         onChange={(e) => setWorkDate(e.target.value)}
