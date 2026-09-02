@@ -62,11 +62,28 @@ GET /staffs
     "groupId": 1,
     "groupName": "営業部",
     "isActive": true,
+    "loggedIn": true,
     "createdAt": "2026-07-26T10:00:00+09:00",
     "updatedAt": "2026-07-26T10:00:00+09:00"
   }
 ]
 ```
+
+`loggedIn` は現在有効なログインセッションがある場合に `true` になります。セッションIDそのものはレスポンスに含めません。
+
+### Force Logout Staff
+
+**Authorization**: `CHIEF` or `MASTER`
+
+**Request**
+```
+POST /staffs/{staffId}/force-logout
+Authorization: Bearer <JWT>
+```
+
+指定スタッフのログインセッションをサーバー側で解除します。成功時は `204 No Content` を返します。対象端末は次回のAPI通信で `401 Unauthorized` となり、ログイン画面へ戻ります。
+
+管理者自身を含め、現在ログイン中でないスタッフに対して実行してもエラーにはならず、セッション解除状態になります。
 
 ### Get Staff by ID
 
