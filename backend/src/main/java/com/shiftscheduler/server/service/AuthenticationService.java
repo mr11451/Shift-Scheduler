@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.Base64;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,7 +43,7 @@ public class AuthenticationService {
     /**
      * Authenticate a staff by staff code/password and issue a JWT on success.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         // Find staff by staff code
         Staff staff = staffRepository.findByStaffCode(request.staffCode())
@@ -57,9 +58,17 @@ public class AuthenticationService {
         if (staff.getPasswordHash() == null || !PasswordUtil.verifyPassword(request.password(), staff.getPasswordHash())) {
             throw new IllegalArgumentException("スタッフコードまたはパスワードが正しくありません。");
         }
+
+        if (staff.getLoginSessionId() != null) {
+            throw new ActiveLoginException();
+        }
         
-        // Generate JWT token
-        String token = JwtTokenUtil.generateToken(staff.getId(), staff.getStaffCode(), staff.getRoleLevel().name());
+        String loginSessionId = UUID.randomUUID().toString();
+        staff.setLoginSessionId(loginSessionId);
+        staffRepository.save(staff);
+
+        String token = JwtTokenUtil.generateToken(
+            staff.getId(), staff.getStaffCode(), staff.getRoleLevel().name(), loginSessionId);
         
         return new LoginResponse(
             staff.getId(),
@@ -68,6 +77,17 @@ public class AuthenticationService {
             staff.getRoleLevel().name(),
             token
         );
+    }
+
+    @Transactional
+    public void logout(String token) {
+        Long staffId = JwtTokenUtil.getStaffIdFromToken(token);
+        String sessionId = JwtTokenUtil.getSessionIdFromToken(token);
+        Staff staff = staffRepository.findById(staffId).orElse(null);
+        if (staff != null && sessionId != null && sessionId.equals(staff.getLoginSessionId())) {
+            staff.setLoginSessionId(null);
+            staffRepository.save(staff);
+        }
     }
 
     /**

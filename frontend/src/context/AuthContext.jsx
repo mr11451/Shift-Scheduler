@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 
 export const AuthContext = createContext();
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 
 // Whether a stored auth token value looks like a real (non-empty, non-placeholder) token.
 function hasUsableToken(token) {
@@ -33,6 +34,28 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
+  useEffect(() => {
+    if (!auth) return undefined;
+
+    let timeoutId;
+    const resetInactivityTimer = () => {
+      window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => {
+        logout();
+        window.location.href = '/login?reason=timeout';
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+    const activityEvents = ['click', 'keydown', 'pointermove', 'touchstart'];
+
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, resetInactivityTimer));
+    resetInactivityTimer();
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, resetInactivityTimer));
+    };
+  }, [auth]);
+
   // Persist the authenticated session to localStorage and update context state.
   function login(authData) {
     if (!hasUsableToken(authData?.token)) {
@@ -49,6 +72,14 @@ export function AuthProvider({ children }) {
 
   // Clear the persisted session and reset context state.
   function logout() {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      fetch('/api/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        keepalive: true,
+      }).catch(() => {});
+    }
     localStorage.removeItem('authToken');
     localStorage.removeItem('staffId');
     localStorage.removeItem('staffCode');

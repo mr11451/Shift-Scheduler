@@ -1,0 +1,1 @@
+ALTER TABLE staffs ADD COLUMN login_session_id VARCHAR(36);

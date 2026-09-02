@@ -89,6 +89,10 @@ public class JwtAuthenticationFilter implements Filter {
             Long staffId = JwtTokenUtil.getStaffIdFromToken(token);
             Staff staff = staffRepository.findById(staffId)
                 .orElseThrow(() -> new JwtException("スタッフが見つかりません。"));
+            String tokenSessionId = JwtTokenUtil.getSessionIdFromToken(token);
+            if (tokenSessionId == null || !tokenSessionId.equals(staff.getLoginSessionId())) {
+                throw new JwtException("別の端末でログインされたため、セッションが無効になりました。");
+            }
             OffsetDateTime passwordChangedAt = staff.getPasswordChangedAt();
             if (passwordChangedAt != null
                     && !JwtTokenUtil.getIssuedAtFromToken(token).toInstant().isAfter(passwordChangedAt.toInstant())) {

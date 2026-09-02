@@ -22,10 +22,17 @@ public class JwtTokenUtil {
      * Build a signed JWT carrying the staff's ID, code, and role, valid for 24 hours.
      */
     public static String generateToken(Long staffId, String staffCode, String roleLevel) {
+        return generateToken(staffId, staffCode, roleLevel, null);
+    }
+
+    public static String generateToken(Long staffId, String staffCode, String roleLevel, String sessionId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("staffId", staffId);
         claims.put("staffCode", staffCode);
         claims.put("roleLevel", roleLevel);
+        if (sessionId != null) {
+            claims.put("sessionId", sessionId);
+        }
 
         return Jwts.builder()
                 .setClaims(claims)
@@ -75,5 +82,9 @@ public class JwtTokenUtil {
      */
     public static Date getIssuedAtFromToken(String token) throws JwtException {
         return validateToken(token).getIssuedAt();
+    }
+
+    public static String getSessionIdFromToken(String token) throws JwtException {
+        return validateToken(token).get("sessionId", String.class);
     }
 }

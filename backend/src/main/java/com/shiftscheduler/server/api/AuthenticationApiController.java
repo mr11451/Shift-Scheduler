@@ -13,6 +13,7 @@ import com.shiftscheduler.server.dto.LoginResponse;
 import com.shiftscheduler.server.dto.PasswordResetConfirmRequest;
 import com.shiftscheduler.server.dto.PasswordResetRequestResponse;
 import com.shiftscheduler.server.service.AuthenticationService;
+import com.shiftscheduler.server.service.ActiveLoginException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -32,9 +33,21 @@ public class AuthenticationApiController {
         try {
             LoginResponse response = authenticationService.login(request);
             return ResponseEntity.ok(response);
+        } catch (ActiveLoginException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("エラー: " + e.getMessage());
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        try {
+            authenticationService.logout((String) request.getAttribute("authToken"));
+        } catch (RuntimeException ignored) {
+            // The client clears its local session even if the server session is already invalid.
+        }
+        return ResponseEntity.noContent().build();
     }
 
     /**

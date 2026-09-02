@@ -43,6 +43,7 @@
 - role_level: VARCHAR(20), NOT NULL
 - group_id: BIGINT, FK -> groups.id, NULL
 - is_active: BOOLEAN, NOT NULL, DEFAULT TRUE
+- login_session_id: VARCHAR(36), NULL
 - created_at: TIMESTAMPTZ, NOT NULL
 - updated_at: TIMESTAMPTZ, NOT NULL
 
@@ -54,6 +55,8 @@
 - `role_level = MASTER` の場合 `group_id` は NULL 可
 - `email` は形式チェック（RFC準拠の簡易バリデーション）
 - `phone` は数字とハイフンのみ、未入力可
+- `login_session_id` は現在有効なログインセッションの識別子。ログイン時に更新され、ログアウト時に NULL になる
+- 同一スタッフの同時ログインは許可せず、既存の `login_session_id` がある場合はログインAPIが `409 Conflict` を返す
 
 ### 4. staff_qualifications
 

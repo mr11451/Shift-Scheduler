@@ -60,6 +60,9 @@ public class Staff {
     @Column
     private OffsetDateTime passwordChangedAt;
 
+    @Column(name = "login_session_id", length = 36)
+    private String loginSessionId;
+
     @Column(name = "ng_shift_time_bands", length = 1000)
     private String ngShiftTypeIds;
 
@@ -170,6 +173,14 @@ public class Staff {
 
     public void setPasswordChangedAt(OffsetDateTime passwordChangedAt) {
         this.passwordChangedAt = passwordChangedAt;
+    }
+
+    public String getLoginSessionId() {
+        return loginSessionId;
+    }
+
+    public void setLoginSessionId(String loginSessionId) {
+        this.loginSessionId = loginSessionId;
     }
 
     public String getNgShiftTypeIds() {

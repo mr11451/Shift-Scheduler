@@ -1080,6 +1080,29 @@ Content-Type: application/json
 
 The response contains `token`, `staffId`, `staffCode`, `staffName`, and `roleLevel`.
 
+ログイン成功時はスタッフごとにセッションIDを発行します。同じスタッフがすでにログイン中の場合、既存セッションを上書きせず、次のエラーを返します。
+
+```http
+409 Conflict
+```
+
+フロントエンドは「同時ログイン不可」ポップアップを表示し、ログイン画面に留まります。ログイン中の端末でログアウトすると、別の端末からログインできるようになります。
+
+### Logout
+
+```
+POST /logout
+Authorization: Bearer <JWT>
+```
+
+サーバー側のログインセッションを解除します。ログアウト後は同じJWTを使用できず、再ログインが必要です。画面を閉じずに30分間操作がない場合も、フロントエンドがこのログアウト処理を実行します。
+
+### Automatic Logout and Token Expiration
+
+- 画面上で30分間操作がない場合、フロントエンドは自動ログアウトしてログイン画面へ戻る
+- JWTの有効期限は発行から24時間
+- パスワード変更時は、変更日時以前に発行されたJWTも無効になる
+
 ### Request Password Reset
 
 ```

@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [simultaneousLoginDetected, setSimultaneousLoginDetected] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { auth, loading: authLoading, login } = useContext(AuthContext);
@@ -35,6 +36,7 @@ export default function LoginPage() {
   async function handleLogin(e) {
     e.preventDefault();
     setError('');
+    setSimultaneousLoginDetected(false);
     setLoading(true);
 
     try {
@@ -58,7 +60,11 @@ export default function LoginPage() {
         navigate(redirectPath, { replace: true });
       } else {
         const errorData = await response.text();
-        setError(errorData || 'ログインに失敗しました。');
+        if (response.status === 409) {
+          setSimultaneousLoginDetected(true);
+        } else {
+          setError(errorData || 'ログインに失敗しました。');
+        }
       }
     } catch (err) {
       setError('ネットワークエラーが発生しました。');
@@ -70,6 +76,15 @@ export default function LoginPage() {
 
   return (
     <div className="login-container">
+      {simultaneousLoginDetected && (
+        <div className="login-popup-backdrop" role="presentation">
+          <div className="login-popup" role="dialog" aria-modal="true" aria-labelledby="simultaneous-login-title">
+            <h2 id="simultaneous-login-title">同時ログイン不可</h2>
+            <p>このメンバーはすでに別の端末でログインしています。</p>
+            <button type="button" onClick={() => setSimultaneousLoginDetected(false)}>閉じる</button>
+          </div>
+        </div>
+      )}
       <div className="login-card">
         <h1>シフト管理システム</h1>
         <p className="login-subtitle">スタッフコードとパスワードでログイン</p>

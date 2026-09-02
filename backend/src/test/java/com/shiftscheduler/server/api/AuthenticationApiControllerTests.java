@@ -7,7 +7,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shiftscheduler.server.dto.LoginRequest;
 import com.shiftscheduler.server.dto.LoginResponse;
+import com.shiftscheduler.server.repository.StaffRepository;
 import com.shiftscheduler.server.service.AuthenticationService;
+import com.shiftscheduler.server.service.ActiveLoginException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -29,6 +31,9 @@ class AuthenticationApiControllerTests {
 
     @MockBean
     private AuthenticationService authenticationService;
+
+    @MockBean
+    private StaffRepository staffRepository;
 
     @Test
     void login_returnsOkWhenCredentialsAreValid() throws Exception {
@@ -58,5 +63,17 @@ class AuthenticationApiControllerTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void login_returnsConflictWhenStaffAlreadyHasActiveSession() throws Exception {
+        when(authenticationService.login(any(LoginRequest.class))).thenThrow(new ActiveLoginException());
+
+        LoginRequest request = new LoginRequest("STF-00001", "password123");
+
+        mockMvc.perform(post("/api/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict());
     }
 }
