@@ -44,6 +44,10 @@ h1 {
   gap: 20px;
 }
 
+.member-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .admin-content {
   display: block !important;
   width: 100% !important;
@@ -162,6 +166,57 @@ button:disabled {
 table {
   width: 100%;
   border-collapse: collapse;
+}
+
+.member-calendar-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.member-calendar-table {
+  min-width: 700px;
+}
+
+.member-message-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(33, 33, 33, 0.4);
+  z-index: 1000;
+}
+
+.member-message-popup {
+  width: min(100%, 440px);
+  padding: 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.2);
+}
+
+.member-message-popup.success {
+  border-color: #059669;
+}
+
+.member-message-popup.error {
+  border-color: #dc2626;
+}
+
+.member-message-popup h2,
+.member-message-popup p {
+  margin: 0;
+}
+
+.member-message-popup p {
+  margin-top: 12px;
+  white-space: pre-line;
+}
+
+.member-message-popup-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 th,

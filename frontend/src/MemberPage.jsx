@@ -42,6 +42,18 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
 
   const isHoliday = (dateStr) => isHolidayDate(dateStr, holidayDates, holidayWeekdays);
 
+  const getWeekendBackground = (weekday, defaultColor) => {
+    if (weekday === 0) return "#fff1f2";
+    if (weekday === 6) return "#eff6ff";
+    return defaultColor;
+  };
+
+  const formatCalendarDay = (date) => (
+    date.getTime() === period.startDate.getTime() || date.getDate() === 1
+      ? `${date.getMonth() + 1}/${date.getDate()}`
+      : date.getDate()
+  );
+
   const days = [...Array(period.startDate.getDay()).fill(null), ...periodDates];
 
   return (
@@ -95,11 +107,12 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
         )}
       </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div className="member-calendar-scroll">
+      <table className="member-calendar-table">
         <thead>
           <tr>
-            {["日", "月", "火", "水", "木", "金", "土"].map((d) => (
-              <th key={d} style={{ padding: "0.5rem", border: "1px solid var(--line)", textAlign: "center" }}>
+            {["日", "月", "火", "水", "木", "金", "土"].map((d, weekday) => (
+              <th key={d} style={{ padding: "0.5rem", border: "1px solid var(--line)", textAlign: "center", backgroundColor: getWeekendBackground(weekday, "var(--accent-soft)") }}>
                 {d}
               </th>
             ))}
@@ -112,6 +125,8 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
                 const dateStr = day ? toLocalDateString(day) : null;
                 const shift = dateStr ? getShiftForDate(dateStr) : null;
                 const request = dateStr ? getRequestForDate(dateStr) : null;
+                const weekday = day ? day.getDay() : dayIdx;
+                const baseBackgroundColor = day ? (monthStatus.kind === "confirmed" ? "#f8fffb" : "#fff") : "#f5f5f5";
 
                 return (
                   <td
@@ -121,12 +136,12 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
                       border: "1px solid var(--line)",
                       minHeight: "80px",
                       verticalAlign: "top",
-                      backgroundColor: day ? (monthStatus.kind === "confirmed" ? "#f8fffb" : "#fff") : "#f5f5f5",
+                      backgroundColor: getWeekendBackground(weekday, baseBackgroundColor),
                     }}
                   >
                     {day && (
                       <>
-                        <strong>{day.getDate()}</strong>
+                        <strong>{formatCalendarDay(day)}</strong>
                         {dateStr && isHoliday(dateStr) && (
                           <div style={{ marginTop: "0.25rem", fontSize: "0.8rem", color: "#b45309", fontWeight: 600 }}>
                             休業日
@@ -154,6 +169,7 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
           ))}
         </tbody>
       </table>
+      </div>
 
       {calendarViewPermissionEnabled && isMember && (
         <div style={{ marginTop: "1rem", border: "1px solid var(--line)", borderRadius: "8px", padding: "0.75rem" }}>
@@ -195,7 +211,7 @@ function CalendarView({ viewableStaffs, selectedStaffId, onSelectStaff, calendar
 }
 
 // Desired-shift request form plus lists of submitted requests and calendar-view permission requests.
-function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftTypeId, onSubmit, loading, message, messageType, shiftRequests, onDeleteRequest, onSubmitRequest, calendarViewPermissionEnabled, permissionRequests, onApprovePermission, onRejectPermission, onCancelPermission, approvedPermissions, onRemoveViewTarget, holidayDates, holidayWeekdays, isMonthConfirmed }) {
+function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftTypeId, onSubmit, loading, shiftRequests, onDeleteRequest, onSubmitRequest, calendarViewPermissionEnabled, permissionRequests, onApprovePermission, onRejectPermission, onCancelPermission, approvedPermissions, onRemoveViewTarget, holidayDates, holidayWeekdays, isMonthConfirmed }) {
   const sortedRequests = [...(shiftRequests || [])].sort((a, b) => (b.workDate || "").localeCompare(a.workDate || ""));
 
   return (
@@ -235,7 +251,6 @@ function FormView({ shiftTypes, workDate, setWorkDate, shiftTypeId, setShiftType
       <button type="submit" disabled={loading || isMonthConfirmed}>
         {loading ? "登録中..." : isMonthConfirmed ? "確定済みのため申請できません" : "申請する"}
       </button>
-      {message && <div className={messageType}>{message}</div>}
 
       {calendarViewPermissionEnabled && <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--line)", paddingTop: "1rem" }}>
         <h3 style={{ margin: "0 0 0.75rem" }}>申請済み一覧</h3>
@@ -653,11 +668,10 @@ export default function MemberPage() {
     }
   }
 
-  // Display a transient success/error message banner.
+  // Display a dismissible success/error popup.
   function showMessage(msg, type) {
     setMessage(msg);
     setMessageType(type);
-    setTimeout(() => setMessage(""), 4000);
   }
 
   // Submit a calendar-view permission request for another staff member in the same group.
@@ -697,7 +711,7 @@ export default function MemberPage() {
       if (data.emailSent) {
         showMessage("パスワード変更用のURLと確認コードをメールで送信しました。1時間以内に手続きを完了してください。", "success");
       } else {
-        window.alert(`${data.message}\n\nアクセスURL: ${data.accessUrl}\n確認コード: ${data.verificationCode}\n\n有効期限は1時間です。`);
+        showMessage(`${data.message}\n\nアクセスURL: ${data.accessUrl}\n確認コード: ${data.verificationCode}\n\n有効期限は1時間です。`, "error");
       }
     } catch (e) {
       showMessage(e.message, "error");
@@ -851,6 +865,27 @@ export default function MemberPage() {
 
   return (
     <main className="shell">
+      {message && (
+        <div
+          className="member-message-popup-backdrop"
+          role="presentation"
+          onClick={() => setMessage("")}
+        >
+          <div
+            className={`member-message-popup ${messageType}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="member-message-popup-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="member-message-popup-title">{messageType === "error" ? "エラー" : "お知らせ"}</h2>
+            <p>{message}</p>
+            <div className="member-message-popup-actions">
+              <button type="button" onClick={() => setMessage("")}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
       <h1>シフト管理</h1>
       <p className="subtitle">スタッフのシフト申請を登録・確認できます。</p>
       {loginSummary && (
@@ -858,56 +893,7 @@ export default function MemberPage() {
           ログイン中: {loginSummary}
         </p>
       )}
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", margin: "-0.5rem 0 1rem" }}>
-        {String(auth?.roleLevel || "").toUpperCase() !== "MEMBER" && (
-          <button type="button" onClick={() => navigate("/admin")} style={{ padding: "0.45rem 0.7rem" }}>
-            管理画面へ
-          </button>
-        )}
-        <button type="button" onClick={requestPasswordReset} style={{ padding: "0.45rem 0.7rem" }}>
-          自分のパスワードを変更
-        </button>
-        <button type="button" onClick={handleLogout} style={{ padding: "0.45rem 0.7rem", backgroundColor: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db" }}>
-          ログアウト
-        </button>
-      </div>
-
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
-        <button
-          type="button"
-          onClick={() => setCurrentView("calendar")}
-          style={{
-            flex: 1,
-            padding: "0.75rem",
-            backgroundColor: currentView === "calendar" ? "var(--accent)" : "#ddd",
-            color: currentView === "calendar" ? "#fff" : "#000",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          カレンダー
-        </button>
-        <button
-          type="button"
-          onClick={() => setCurrentView("form")}
-          style={{
-            flex: 1,
-            padding: "0.75rem",
-            backgroundColor: currentView === "form" ? "var(--accent)" : "#ddd",
-            color: currentView === "form" ? "#fff" : "#000",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          申請フォーム
-        </button>
-      </div>
-
-      <section className="layout">
+      <section className="layout member-layout">
         {currentView === "calendar" ? (
           <CalendarView
             viewableStaffs={viewableStaffs}
@@ -936,8 +922,6 @@ export default function MemberPage() {
             setShiftTypeId={setShiftTypeId}
             onSubmit={onSubmit}
             loading={loading}
-            message={message}
-            messageType={messageType}
             shiftRequests={submittedShiftRequests}
             onDeleteRequest={handleDeleteRequest}
             onSubmitRequest={handleSubmitRequest}
@@ -955,6 +939,56 @@ export default function MemberPage() {
           />
         )}
       </section>
+
+      <div style={{ display: "grid", gap: "0.75rem", marginTop: "1rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            type="button"
+            onClick={() => setCurrentView("calendar")}
+            style={{
+              flex: 1,
+              padding: "0.75rem",
+              backgroundColor: currentView === "calendar" ? "var(--accent)" : "#ddd",
+              color: currentView === "calendar" ? "#fff" : "#000",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            カレンダー
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentView("form")}
+            style={{
+              flex: 1,
+              padding: "0.75rem",
+              backgroundColor: currentView === "form" ? "var(--accent)" : "#ddd",
+              color: currentView === "form" ? "#fff" : "#000",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            申請フォーム
+          </button>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", flexWrap: "wrap" }}>
+          {String(auth?.roleLevel || "").toUpperCase() !== "MEMBER" && (
+            <button type="button" onClick={() => navigate("/admin")} style={{ padding: "0.45rem 0.7rem" }}>
+              管理画面へ
+            </button>
+          )}
+          <button type="button" onClick={requestPasswordReset} style={{ padding: "0.45rem 0.7rem" }}>
+            自分のパスワードを変更
+          </button>
+          <button type="button" onClick={handleLogout} style={{ padding: "0.45rem 0.7rem", backgroundColor: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db" }}>
+            ログアウト
+          </button>
+        </div>
+      </div>
     </main>
   );
 }

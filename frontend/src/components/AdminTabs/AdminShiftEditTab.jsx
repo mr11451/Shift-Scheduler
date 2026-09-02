@@ -63,6 +63,14 @@ export default function AdminShiftEditTab() {
     return date;
   }
 
+  function formatDisplayedDay(dayIndex) {
+    const date = getDisplayedDate(dayIndex);
+    const period = getShiftPeriod(currentDate, closingDay);
+    return date.getTime() === period.startDate.getTime() || date.getDate() === 1
+      ? `${date.getMonth() + 1}/${date.getDate()}`
+      : date.getDate();
+  }
+
   // Format a year/month/day triple as "YYYY-MM-DD".
   function toLocalDateStringByDay(year, monthIndex, day) {
     return toLocalDateString(getDisplayedDate(day));
@@ -1105,7 +1113,8 @@ export default function AdminShiftEditTab() {
             onClick={previousMonth}
             style={{
               padding: "0.4rem 0.6rem",
-              backgroundColor: "#ddd",
+              backgroundColor: "#0f766e",
+              color: "#fff",
               border: "none",
               borderRadius: "4px",
               cursor: "pointer",
@@ -1121,7 +1130,8 @@ export default function AdminShiftEditTab() {
             onClick={nextMonth}
             style={{
               padding: "0.4rem 0.6rem",
-              backgroundColor: "#ddd",
+              backgroundColor: "#0f766e",
+              color: "#fff",
               border: "none",
               borderRadius: "4px",
               cursor: "pointer",
@@ -1253,7 +1263,7 @@ export default function AdminShiftEditTab() {
                   ...getWeekendColumnStyle(day),
                 }}
               >
-                <span className="shift-date-number">{getDisplayedDate(day).getDate()}</span>
+                <span className="shift-date-number">{formatDisplayedDay(day)}</span>
                 <span className="shift-date-weekday">({getWeekdayLabel(day)})</span>
               </div>
             ))}
