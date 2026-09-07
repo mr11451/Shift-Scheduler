@@ -25,6 +25,11 @@ public class InitializeTestPasswordsRunner implements CommandLineRunner {
     // Set test passwords for all staffs that don't have a password yet
     var staffs = staffRepository.findAll();
     for (Staff staff : staffs) {
+      if (staff.getLoginSessionId() != null) {
+        staff.setLoginSessionId(null);
+        staffRepository.save(staff);
+      }
+
       if (staff.getPasswordHash() == null || staff.getPasswordHash().isEmpty()) {
         // Generate test password based on staff code
         String testPassword = "test_" + staff.getStaffCode().toLowerCase();
