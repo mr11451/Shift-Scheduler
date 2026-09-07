@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +18,7 @@ import com.shiftscheduler.server.domain.Group;
 import com.shiftscheduler.server.domain.RoleLevel;
 import com.shiftscheduler.server.domain.Staff;
 import com.shiftscheduler.server.dto.StaffCreateRequest;
+import com.shiftscheduler.server.dto.StaffCreateResponse;
 import com.shiftscheduler.server.dto.StaffUpdateRequest;
 import com.shiftscheduler.server.repository.CalendarViewPermissionRepository;
 import com.shiftscheduler.server.repository.GroupRepository;
@@ -266,6 +268,30 @@ class StaffServiceTests {
     }
 
     @Test
+    void createStaffWithInitialLogin_returnsFallbackInformationForChiefWhenEmailIsUnavailable() {
+        Staff updater = new Staff();
+        updater.setId(1L);
+        updater.setRoleLevel(RoleLevel.MASTER);
+
+        when(staffRepository.findById(1L)).thenReturn(Optional.of(updater));
+        when(accessControlService.isMaster(updater)).thenReturn(true);
+        when(staffRepository.count()).thenReturn(0L);
+        when(staffRepository.save(org.mockito.ArgumentMatchers.any(Staff.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(systemSettingService.getSystemSettingBooleanValue("memberLoginNotificationEnabled")).thenReturn(false);
+
+        StaffCreateRequest request = new StaffCreateRequest();
+        request.setStaffName("新規チーフ");
+        request.setResponsibility("担当");
+        request.setRoleLevel(RoleLevel.CHIEF);
+
+        StaffCreateResponse response = staffService.createStaffWithInitialLogin(1L, request);
+
+        assertEquals(false, response.initialLoginInformation().emailSent());
+        assertEquals("STF-00001", response.initialLoginInformation().loginCode());
+        assertTrue(response.initialLoginInformation().initialPassword() != null);
+    }
+
+    @Test
     void updateStaff_doesNotChangeGroupWhenUpdaterIsNotMaster() {
         Group currentGroup = new Group();
         currentGroup.setId(200L);
@@ -329,5 +355,21 @@ class StaffServiceTests {
         Staff updated = staffService.updateStaff(1L, 2L, request);
 
         assertEquals(RoleLevel.CHIEF, updated.getRoleLevel());
+    }
+
+    @Test
+    void deactivateStaff_rejectsDeactivatingLastActiveMaster() {
+        Staff master = new Staff();
+        master.setId(1L);
+        master.setRoleLevel(RoleLevel.MASTER);
+        master.setIsActive(true);
+
+        when(staffRepository.findById(1L)).thenReturn(Optional.of(master));
+        when(staffRepository.countByRoleLevelAndIsActiveTrue(RoleLevel.MASTER)).thenReturn(1L);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> staffService.deactivateStaff(1L));
+
+        assertEquals("最後のマスターは削除できません。", exception.getMessage());
     }
 }

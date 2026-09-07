@@ -86,7 +86,7 @@ public class StaffService {
     }
 
     /**
-     * Create a staff member and, for MEMBER role, also issue initial login credentials.
+     * Create a staff member and issue initial login credentials.
      */
     public StaffCreateResponse createStaffWithInitialLogin(Long updaterStaffId, StaffCreateRequest request) {
         Staff staff = createStaff(updaterStaffId, request);
@@ -254,14 +254,10 @@ public class StaffService {
     }
 
     /**
-     * Build the initial-login provisioning record for a newly created MEMBER, emailing the
+     * Build the initial-login provisioning record for a newly created staff member, emailing the
      * credentials when possible and falling back to returning them directly otherwise.
      */
     private InitialLoginInformation createInitialLoginInformation(Staff staff) {
-        if (staff.getRoleLevel() != RoleLevel.MEMBER) {
-            return null;
-        }
-
         String initialPassword = generateInitialPassword();
         String accessUrl = buildInitialLoginAccessUrl();
         staff.setPasswordHash(com.shiftscheduler.server.util.PasswordUtil.hashPassword(initialPassword));
@@ -378,6 +374,10 @@ public class StaffService {
      */
     public Staff deactivateStaff(Long staffId) {
         Staff staff = staffRepository.findById(staffId).orElseThrow(() -> new IllegalArgumentException("Staff not found"));
+        if (staff.getIsActive() && staff.getRoleLevel() == RoleLevel.MASTER
+                && staffRepository.countByRoleLevelAndIsActiveTrue(RoleLevel.MASTER) <= 1) {
+            throw new IllegalArgumentException("最後のマスターは削除できません。");
+        }
         staff.setIsActive(false);
         staff.setLoginSessionId(null);
         staff.setUpdatedAt(OffsetDateTime.now());

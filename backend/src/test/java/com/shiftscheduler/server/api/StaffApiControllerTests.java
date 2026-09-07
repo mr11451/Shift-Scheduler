@@ -24,12 +24,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shiftscheduler.server.domain.RoleLevel;
 import com.shiftscheduler.server.domain.Staff;
+import com.shiftscheduler.server.dto.PasswordResetRequestResponse;
 import com.shiftscheduler.server.dto.StaffCreateRequest;
 import com.shiftscheduler.server.dto.StaffCreateResponse;
 import com.shiftscheduler.server.dto.StaffResponse;
 import com.shiftscheduler.server.dto.StaffUpdateRequest;
+import com.shiftscheduler.server.service.AuthenticationService;
 import com.shiftscheduler.server.service.StaffService;
-import com.shiftscheduler.server.repository.StaffRepository;
 import com.shiftscheduler.server.util.JwtTokenUtil;
 
 @WebMvcTest(StaffApiController.class)
@@ -48,7 +49,7 @@ class StaffApiControllerTests {
     private StaffService staffService;
 
     @MockBean
-    private StaffRepository staffRepository;
+    private AuthenticationService authenticationService;
 
     @Test
     void listStaffs_returnsList() throws Exception {
@@ -168,6 +169,18 @@ class StaffApiControllerTests {
     }
 
     @Test
+    void requestStaffPasswordReset_returnsEmailDeliveryStatus() throws Exception {
+        when(authenticationService.requestPasswordResetForStaff(2L))
+                .thenReturn(new PasswordResetRequestResponse(true, "送信しました。", null, null));
+
+        mockMvc.perform(post("/api/staffs/2/password-reset-requests")
+                        .header("Authorization", AUTH_HEADER)
+                        .requestAttr("roleLevel", "MASTER"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value(true));
+    }
+
+    @Test
     void deactivateStaff_returnsNoContent() throws Exception {
         Staff staff = new Staff();
         staff.setId(1L);
@@ -180,6 +193,15 @@ class StaffApiControllerTests {
         mockMvc.perform(delete("/api/staffs/1")
                         .header("Authorization", AUTH_HEADER))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deactivateStaff_returnsBadRequestWhenTargetIsLastMaster() throws Exception {
+        when(staffService.deactivateStaff(1L)).thenThrow(new IllegalArgumentException("最後のマスターは削除できません。"));
+
+        mockMvc.perform(delete("/api/staffs/1")
+                        .header("Authorization", AUTH_HEADER))
+                .andExpect(status().isBadRequest());
     }
 
     private StaffResponse toResponse(Staff staff) {

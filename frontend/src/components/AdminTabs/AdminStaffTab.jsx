@@ -78,6 +78,20 @@ function StaffListView({ onEdit }) {
     }
   }
 
+  async function handlePasswordResetEmail(staff) {
+    if (!window.confirm(`${staff.staffName}にパスワード再設定メールを送信しますか？`)) return;
+    try {
+      const res = await fetchWithAuth(`/api/staffs/${staff.id}/password-reset-requests`, { method: "POST" });
+      if (!res.ok) throw new Error("パスワード再設定メールの送信に失敗しました。");
+      const emailSent = await res.json();
+      setMessage(emailSent ? `${staff.staffName}にパスワード再設定メールを送信しました。` : "メール送信が利用できません。SMTP設定を確認してください。");
+      setMessageType(emailSent ? "success" : "error");
+    } catch (e) {
+      setMessage(e.message);
+      setMessageType("error");
+    }
+  }
+
   // Switch the sort column, or flip direction if the same column is clicked again.
   function toggleSort(nextKey) {
     if (sortKey === nextKey) {
@@ -305,6 +319,23 @@ function StaffListView({ onEdit }) {
                     }}
                   >
                     {staff.loggedIn ? "強制ログアウト" : "未ログイン"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePasswordResetEmail(staff)}
+                    disabled={!staff.email}
+                    style={{
+                      padding: "0.4rem 0.8rem",
+                      marginLeft: "0.5rem",
+                      backgroundColor: staff.email ? "#2563eb" : "#d1d5db",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: staff.email ? "pointer" : "not-allowed",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    再設定メール
                   </button>
                 </td>
               </tr>

@@ -24,6 +24,8 @@ public interface StaffRepository extends JpaRepository<Staff, Long> {
     @Query("SELECT s FROM Staff s WHERE s.isActive = true AND s.roleLevel = ?1 ORDER BY s.staffCode ASC")
     List<Staff> findAllActiveByRoleLevel(RoleLevel roleLevel);
 
+    long countByRoleLevelAndIsActiveTrue(RoleLevel roleLevel);
+
     @Query("SELECT s FROM Staff s WHERE s.isActive = true AND s.group.id = ?1 ORDER BY s.staffCode ASC, s.staffName ASC")
     List<Staff> findAllActiveByGroupId(Long groupId);
 

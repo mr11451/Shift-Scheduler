@@ -151,6 +151,14 @@ public class AuthenticationService {
     }
 
     /**
+     * Issue a password-reset email for a staff member selected by a MASTER administrator.
+     */
+    @Transactional
+    public PasswordResetRequestResponse requestPasswordResetForStaff(Long staffId) {
+        return requestPasswordReset(staffId);
+    }
+
+    /**
      * Validate a password reset token and verification code, then set the new password.
      */
     @Transactional

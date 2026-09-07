@@ -86,13 +86,8 @@ public class AccessControlService {
         if (editor.getId().equals(targetStaff.getId()) && editor.getRoleLevel() == RoleLevel.MEMBER) {
             return true;
         }
-
         // MASTER can edit any member's desired shifts
-        if (editor.getRoleLevel() == RoleLevel.MASTER) {
-            return true;
-        }
-
-        return false;
+        return editor.getRoleLevel() == RoleLevel.MASTER;
     }
 
     /**

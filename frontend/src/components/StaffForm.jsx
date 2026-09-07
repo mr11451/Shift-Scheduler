@@ -50,6 +50,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [currentGroupName, setCurrentGroupName] = useState("");
+  const [initialLoginInformation, setInitialLoginInformation] = useState(null);
 
   useEffect(() => {
     loadGroups();
@@ -394,13 +395,13 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
 
       if (response.ok) {
         const responseData = await response.json();
-        const initialLoginInformation = responseData.initialLoginInformation;
-        setMessage(isEditMode ? "スタッフ情報を更新しました。" : initialLoginInformation?.emailSent ? "スタッフを登録し、初回ログイン情報をメールで送信しました。" : "スタッフを登録しました。");
+        const returnedInitialLoginInformation = responseData.initialLoginInformation;
+        const showInitialLoginInformation = !isEditMode && returnedInitialLoginInformation && !returnedInitialLoginInformation.emailSent;
+        setMessage(isEditMode ? "スタッフ情報を更新しました。" : returnedInitialLoginInformation?.emailSent ? "スタッフを登録し、初回ログイン情報をメールで送信しました。" : "スタッフを登録しました。");
         setMessageType("success");
-        if (!isEditMode && initialLoginInformation && !initialLoginInformation.emailSent) {
-          window.alert(`${initialLoginInformation.message}\n\nアクセスURL: ${initialLoginInformation.accessUrl}\nログインコード: ${initialLoginInformation.loginCode}\n初期パスワード: ${initialLoginInformation.initialPassword}`);
-        }
-        if (onSuccess) {
+        if (showInitialLoginInformation) {
+          setInitialLoginInformation(returnedInitialLoginInformation);
+        } else if (onSuccess) {
           setTimeout(() => onSuccess(), 1500);
         }
       } else {
@@ -756,6 +757,41 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {initialLoginInformation && (
+        <div className="initial-login-modal-backdrop" role="presentation">
+          <section className="initial-login-modal" role="dialog" aria-modal="true" aria-labelledby="initial-login-information-title">
+            <h3 id="initial-login-information-title">初回ログイン情報</h3>
+            <p>{initialLoginInformation.message}</p>
+            <dl className="initial-login-information-list">
+              <div>
+                <dt>アクセスURL</dt>
+                <dd>{initialLoginInformation.accessUrl}</dd>
+              </div>
+              <div>
+                <dt>ログインコード</dt>
+                <dd>{initialLoginInformation.loginCode}</dd>
+              </div>
+              <div>
+                <dt>初期パスワード</dt>
+                <dd>{initialLoginInformation.initialPassword}</dd>
+              </div>
+            </dl>
+            <div className="initial-login-modal-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setInitialLoginInformation(null);
+                  onSuccess?.();
+                }}
+              >
+                閉じる
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </div>

@@ -15,12 +15,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.shiftscheduler.server.domain.Staff;
 import com.shiftscheduler.server.annotation.RequireRole;
+import com.shiftscheduler.server.domain.Staff;
+import com.shiftscheduler.server.dto.PasswordResetRequestResponse;
 import com.shiftscheduler.server.dto.StaffCreateRequest;
 import com.shiftscheduler.server.dto.StaffCreateResponse;
 import com.shiftscheduler.server.dto.StaffResponse;
 import com.shiftscheduler.server.dto.StaffUpdateRequest;
+import com.shiftscheduler.server.service.AuthenticationService;
 import com.shiftscheduler.server.service.StaffService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,9 +31,11 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/api/staffs")
 public class StaffApiController {
     private final StaffService staffService;
+    private final AuthenticationService authenticationService;
 
-    public StaffApiController(StaffService staffService) {
+    public StaffApiController(StaffService staffService, AuthenticationService authenticationService) {
         this.staffService = staffService;
+        this.authenticationService = authenticationService;
     }
 
     /**
@@ -144,6 +148,9 @@ public class StaffApiController {
             staffService.deactivateStaff(staffId);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
+            if ("最後のマスターは削除できません。".equals(e.getMessage())) {
+                return ResponseEntity.badRequest().build();
+            }
             return ResponseEntity.notFound().build();
         }
     }
@@ -157,6 +164,18 @@ public class StaffApiController {
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    /** POST /api/staffs/{staffId}/password-reset-requests - Send a staff password reset email. */
+    @PostMapping("/{staffId}/password-reset-requests")
+    @RequireRole(roles = {"MASTER"})
+    public ResponseEntity<?> requestStaffPasswordReset(@PathVariable Long staffId) {
+        try {
+            PasswordResetRequestResponse response = authenticationService.requestPasswordResetForStaff(staffId);
+            return ResponseEntity.ok(response.emailSent());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("エラー: " + e.getMessage());
         }
     }
 

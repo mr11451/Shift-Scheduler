@@ -85,6 +85,23 @@ Authorization: Bearer <JWT>
 
 管理者自身を含め、現在ログイン中でないスタッフに対して実行してもエラーにはならず、セッション解除状態になります。
 
+### Send Staff Password Reset Email
+
+**Authorization**: `MASTER`
+
+**Request**
+```
+POST /staffs/{staffId}/password-reset-requests
+Authorization: Bearer <JWT>
+```
+
+管理画面から指定したスタッフへ、権限にかかわらずパスワード再設定メールを送信します。メール送信が利用できない場合、再設定トークンや確認コードは管理者へ返却せず、`false` を返します。
+
+**Response** (200 OK)
+```json
+true
+```
+
 ### Get Staff by ID
 
 **Request**
@@ -163,7 +180,7 @@ Content-Type: application/json
 }
 ```
 
-MEMBERを新規登録すると初回ログイン情報を発行します。SMTP未設定、メールアドレス未登録、または送信失敗時は、`initialLoginInformation` に `accessUrl`、`loginCode`、`initialPassword` が含まれ、管理画面はこれをダイアログに表示します。メール送信成功時、これらの機密値はレスポンスに含まれません。
+新規スタッフ登録時に、権限にかかわらず初回ログイン情報を発行します。SMTP未設定、メールアドレス未登録、または送信失敗時は、`initialLoginInformation` に `accessUrl`、`loginCode`、`initialPassword` が含まれ、管理画面はこれをダイアログに表示します。メール送信成功時、これらの機密値はレスポンスに含まれません。
 
 **Error Responses**
 - `400 BAD REQUEST`: Validation error (invalid email, phone format, missing required fields)
@@ -221,6 +238,8 @@ DELETE /staffs/{id}
 **Response** (204 NO CONTENT)
 
 **Note**: Soft delete - staff record remains but `isActive` set to false
+
+有効なマスターが1人だけの場合、そのマスターは削除できません。該当時は `400 BAD REQUEST` を返します。
 
 ### Reactivate Staff
 
