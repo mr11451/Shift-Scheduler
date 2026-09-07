@@ -5,5 +5,6 @@ public record LoginResponse(
     String staffCode,
     String staffName,
     String roleLevel,
+    Long groupId,
     String token
 ) {}

@@ -1,5 +1,13 @@
 package com.shiftscheduler.server.api;
 
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -8,17 +16,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shiftscheduler.server.dto.LoginRequest;
 import com.shiftscheduler.server.dto.LoginResponse;
 import com.shiftscheduler.server.repository.StaffRepository;
-import com.shiftscheduler.server.service.AuthenticationService;
 import com.shiftscheduler.server.service.ActiveLoginException;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import com.shiftscheduler.server.service.AuthenticationService;
 
 @WebMvcTest(AuthenticationApiController.class)
 class AuthenticationApiControllerTests {
@@ -37,7 +36,7 @@ class AuthenticationApiControllerTests {
 
     @Test
     void login_returnsOkWhenCredentialsAreValid() throws Exception {
-        LoginResponse response = new LoginResponse(1L, "STF-00001", "山田太郎", "MASTER", "token-value");
+        LoginResponse response = new LoginResponse(1L, "STF-00001", "山田太郎", "MASTER", null, "token-value");
         when(authenticationService.login(any(LoginRequest.class))).thenReturn(response);
 
         LoginRequest request = new LoginRequest("STF-00001", "password123");
@@ -49,6 +48,7 @@ class AuthenticationApiControllerTests {
                 .andExpect(jsonPath("$.staffCode").value("STF-00001"))
                 .andExpect(jsonPath("$.staffName").value("山田太郎"))
                 .andExpect(jsonPath("$.roleLevel").value("MASTER"))
+                .andExpect(jsonPath("$.groupId").doesNotExist())
                 .andExpect(jsonPath("$.token").value("token-value"));
     }
 

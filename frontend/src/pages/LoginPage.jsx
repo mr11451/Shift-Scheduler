@@ -3,8 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import './LoginPage.css';
 
-// Where to send the user after login: back to the originally requested page, or /member by default.
-function resolveRedirectPath(rawFrom) {
+// Where to send the user after login: ungrouped masters use administration; others use the requested page or /member.
+function resolveRedirectPath(rawFrom, auth) {
+  if (String(auth?.roleLevel || '').toUpperCase() === 'MASTER' && !auth?.groupId) {
+    return '/admin';
+  }
   if (typeof rawFrom !== 'string' || !rawFrom.startsWith('/')) {
     return '/member';
   }
@@ -24,7 +27,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { auth, loading: authLoading, login } = useContext(AuthContext);
-  const redirectPath = resolveRedirectPath(location.state?.from);
+  const redirectPath = resolveRedirectPath(location.state?.from, auth);
 
   useEffect(() => {
     if (!authLoading && auth) {
@@ -54,10 +57,10 @@ export default function LoginPage() {
           staffCode: data.staffCode,
           staffName: data.staffName,
           roleLevel: data.roleLevel,
+          groupId: data.groupId,
         });
         
-        // Redirect back to originally requested page when available.
-        navigate(redirectPath, { replace: true });
+        navigate(resolveRedirectPath(location.state?.from, data), { replace: true });
       } else {
         const errorData = await response.text();
         if (response.status === 409) {

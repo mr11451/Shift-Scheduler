@@ -1117,7 +1117,7 @@ Content-Type: application/json
 }
 ```
 
-The response contains `token`, `staffId`, `staffCode`, `staffName`, and `roleLevel`.
+The response contains `token`, `staffId`, `staffCode`, `staffName`, `roleLevel`, and `groupId`. An ungrouped `MASTER` is redirected to the administration screen after login.
 
 ログイン成功時はスタッフごとにセッションIDを発行します。同じスタッフがすでにログイン中の場合、既存セッションを上書きせず、次のエラーを返します。
 

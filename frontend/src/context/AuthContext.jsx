@@ -22,7 +22,8 @@ export function AuthProvider({ children }) {
         staffId: localStorage.getItem('staffId'),
         staffCode: localStorage.getItem('staffCode'),
         staffName: localStorage.getItem('staffName'),
-        roleLevel: localStorage.getItem('roleLevel')
+        roleLevel: localStorage.getItem('roleLevel'),
+        groupId: localStorage.getItem('groupId')
       });
     } else {
       localStorage.removeItem('authToken');
@@ -30,6 +31,7 @@ export function AuthProvider({ children }) {
       localStorage.removeItem('staffCode');
       localStorage.removeItem('staffName');
       localStorage.removeItem('roleLevel');
+      localStorage.removeItem('groupId');
     }
     setLoading(false);
   }, []);
@@ -68,6 +70,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem('staffCode', authData.staffCode);
     localStorage.setItem('staffName', authData.staffName);
     localStorage.setItem('roleLevel', authData.roleLevel);
+    localStorage.setItem('groupId', authData.groupId ?? '');
     setAuth(authData);
   }
 
@@ -89,6 +92,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('staffCode');
     localStorage.removeItem('staffName');
     localStorage.removeItem('roleLevel');
+    localStorage.removeItem('groupId');
     setAuth(null);
   }
 

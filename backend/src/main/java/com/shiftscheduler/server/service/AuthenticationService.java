@@ -75,6 +75,7 @@ public class AuthenticationService {
             staff.getStaffCode(),
             staff.getStaffName(),
             staff.getRoleLevel().name(),
+            staff.getGroup() == null ? null : staff.getGroup().getId(),
             token
         );
     }

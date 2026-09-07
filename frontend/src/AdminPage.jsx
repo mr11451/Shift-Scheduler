@@ -79,6 +79,7 @@ export default function AdminPage() {
 
   const isMasterRole = String(loginSource?.roleLevel || "").toUpperCase() === "MASTER";
   const isChiefRole = String(loginSource?.roleLevel || "").toUpperCase() === "CHIEF";
+  const isUngroupedMaster = isMasterRole && !loginSource?.groupId;
 
   const tabs = [
     { id: "staff", label: "スタッフ管理" },
@@ -123,21 +124,23 @@ export default function AdminPage() {
             </p>
           )}
         </div>
-        <Link to="/member" style={{ textDecoration: "none" }}>
-          <button
-            type="button"
-            style={{
-              padding: "0.5rem 1rem",
-              backgroundColor: "#999",
-              color: "#fff",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
-          >
-            ← 会員ページへ
-          </button>
-        </Link>
+        {!isUngroupedMaster && (
+          <Link to="/member" style={{ textDecoration: "none" }}>
+            <button
+              type="button"
+              style={{
+                padding: "0.5rem 1rem",
+                backgroundColor: "#999",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+              }}
+            >
+              ← 会員ページへ
+            </button>
+          </Link>
+        )}
       </div>
 
       <div style={{ marginBottom: "1.5rem" }}>
