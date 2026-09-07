@@ -18,7 +18,8 @@ const WEEKDAY_OPTIONS = [
 // and NG/preferred shift settings.
 export default function StaffForm({ staffId, onSuccess, onCancel }) {
   const { auth } = useContext(AuthContext);
-  const canEditGroup = auth?.roleLevel === "MASTER";
+  const isMaster = auth?.roleLevel === "MASTER";
+  const canEditGroup = isMaster;
   const [roleLabelMap, setRoleLabelMap] = useState({ ...DEFAULT_ROLE_LABELS });
   const [form, setForm] = useState({
     staffName: "",
@@ -502,6 +503,7 @@ export default function StaffForm({ staffId, onSuccess, onCancel }) {
               onChange={onChange}
               className="form-control"
               required
+              disabled={!isMaster}
             >
               <option value="MEMBER">{roleLabelMap.MEMBER || DEFAULT_ROLE_LABELS.MEMBER}</option>
               <option value="CHIEF">{roleLabelMap.CHIEF || DEFAULT_ROLE_LABELS.CHIEF}</option>

@@ -217,7 +217,9 @@
   - MEMBER登録時に初回ログイン情報を発行する
   - `memberLoginNotificationEnabled=true` かつSMTP送信可能な場合、登録メールへ送信する
   - 送信不可時はレスポンスの `initialLoginInformation` に初回ログイン情報を含める
-- `PUT /api/staffs/{staffId}`（マスターのみ）
+- `PUT /api/staffs/{staffId}`
+  - 権限レベルおよびグループの変更はマスターのみ可能
+  - マスター以外がこれらの値を指定しても既存値を維持する
 - `GET /api/staffs/{staffId}/calendar?yearMonth=YYYY-MM`
   - メンバー: 自分のみ
   - メンバー（オプション機能有効時）: 自分 + 許可済み相手

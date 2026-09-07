@@ -1,9 +1,17 @@
 package com.shiftscheduler.server.service;
 
+import java.util.List;
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.shiftscheduler.server.domain.Group;
 import com.shiftscheduler.server.domain.RoleLevel;
@@ -13,13 +21,6 @@ import com.shiftscheduler.server.dto.StaffUpdateRequest;
 import com.shiftscheduler.server.repository.CalendarViewPermissionRepository;
 import com.shiftscheduler.server.repository.GroupRepository;
 import com.shiftscheduler.server.repository.StaffRepository;
-import java.util.List;
-import java.util.Optional;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class StaffServiceTests {
@@ -247,6 +248,7 @@ class StaffServiceTests {
         updater.setRoleLevel(RoleLevel.MASTER);
 
         when(staffRepository.findById(1L)).thenReturn(Optional.of(updater));
+        when(accessControlService.isMaster(updater)).thenReturn(true);
         when(groupRepository.findById(100L)).thenReturn(Optional.of(group));
         when(staffRepository.count()).thenReturn(0L);
         when(staffRepository.save(org.mockito.ArgumentMatchers.any(Staff.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -291,12 +293,41 @@ class StaffServiceTests {
         StaffUpdateRequest request = new StaffUpdateRequest();
         request.setStaffName("既存スタッフ");
         request.setResponsibility("担当");
-        request.setRoleLevel(RoleLevel.MEMBER);
+        request.setRoleLevel(RoleLevel.CHIEF);
         request.setGroupId(300L);
         request.setIsActive(true);
 
         Staff updated = staffService.updateStaff(1L, 2L, request);
 
         assertEquals(200L, updated.getGroup().getId());
+        assertEquals(RoleLevel.MEMBER, updated.getRoleLevel());
+    }
+
+    @Test
+    void updateStaff_changesRoleWhenUpdaterIsMaster() {
+        Staff updater = new Staff();
+        updater.setId(1L);
+        updater.setRoleLevel(RoleLevel.MASTER);
+
+        Staff staff = new Staff();
+        staff.setId(2L);
+        staff.setStaffName("既存スタッフ");
+        staff.setRoleLevel(RoleLevel.MEMBER);
+        staff.setIsActive(true);
+
+        when(staffRepository.findById(1L)).thenReturn(Optional.of(updater));
+        when(staffRepository.findById(2L)).thenReturn(Optional.of(staff));
+        when(accessControlService.isMaster(updater)).thenReturn(true);
+        when(staffRepository.save(org.mockito.ArgumentMatchers.any(Staff.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StaffUpdateRequest request = new StaffUpdateRequest();
+        request.setStaffName("既存スタッフ");
+        request.setResponsibility("担当");
+        request.setRoleLevel(RoleLevel.CHIEF);
+        request.setIsActive(true);
+
+        Staff updated = staffService.updateStaff(1L, 2L, request);
+
+        assertEquals(RoleLevel.CHIEF, updated.getRoleLevel());
     }
 }

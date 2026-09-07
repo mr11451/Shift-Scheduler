@@ -111,8 +111,9 @@ public class StaffService {
                 ? "未設定" : request.getResponsibility());
         staff.setIsActive(request.getIsActive());
 
-        // Only the logged-in MASTER may change the group.
+        // Only the logged-in MASTER may change the role or group.
         if (accessControlService.isMaster(updater)) {
+            staff.setRoleLevel(request.getRoleLevel());
             if (request.getGroupId() != null) {
                 Optional<Group> group = groupRepository.findById(request.getGroupId());
                 if (group.isPresent()) {

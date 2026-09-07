@@ -99,7 +99,7 @@ export default function LoginPage() {
               id="staffCode"
               value={staffCode}
               onChange={(e) => setStaffCode(e.target.value)}
-              placeholder="STF-00001"
+              placeholder="スタッフコード"
               required
               disabled={loading}
             />

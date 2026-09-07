@@ -175,6 +175,7 @@ MEMBERを新規登録すると初回ログイン情報を発行します。SMTP�
 ```
 PUT /staffs/{id}
 Content-Type: application/json
+Authorization: Bearer <JWT>
 
 {
   "phone": "090-5555-5555",
@@ -187,8 +188,10 @@ Content-Type: application/json
 - `email`: Email (if updated)
 - `phone`: Phone number
 - `responsibility`: Job responsibility
-- `roleLevel`: Role level (cannot downgrade from CHIEF to MEMBER)
-- `groupId`: Group assignment
+- `roleLevel`: Role level. Only a MASTER may change this value.
+- `groupId`: Group assignment. Only a MASTER may change this value.
+
+`roleLevel` and `groupId` are preserved when the authenticated actor is not a MASTER, even if those fields are present in the request.
 
 **Response** (200 OK)
 ```json
